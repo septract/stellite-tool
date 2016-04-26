@@ -2,20 +2,26 @@
 
 open Stellite.parser
 
+let rec intersperse i xs = 
+    match xs with
+    | [] -> ""  
+    | [x] -> x 
+    | x::y::ys -> x + i + intersperse i (y::ys)
+
 // TODO: Should refactor these two into one fold :p 
 let dispVarDecl cmds = 
     List.map (fun c -> match c with 
                        | GlobDecl vs -> vs  
                        | _ -> []) 
              cmds
-    |> List.concat |> List.fold (fun c x -> c + " " + x) "" 
+    |> List.concat |> intersperse ", "   
 
 let dispValDecl cmds = 
     List.map (fun c -> match c with 
                        | ValDecl vs -> vs  
                        | _ -> []) 
              cmds
-    |> List.concat |> List.fold (fun c x -> c + " " + x) "" 
+    |> List.concat |> intersperse ", "   
 
 let isAct x = 
     match x with 
@@ -29,12 +35,6 @@ let rec dispN (str : string) (i : int) : List<string> =
     match i with 
     | 0 -> []  
     | _ -> dispN str (i-1) @ [str + (string i)] 
-
-let rec intersperse i xs = 
-    match xs with
-    | [] -> ""  
-    | [x] -> x 
-    | x::y::ys -> x + i + intersperse i (y::ys)
 
 //let setLoc a i = 
 //    match a with 
@@ -67,12 +67,8 @@ let actKind c =
     | RMW _ -> "RMW" 
     | _ -> failwith "actKind: not an action!"
 
-
-// For each read, associated writes must have the same value
-// For each read, following assumes constrain its value.
-
-let genEqRW id id2 = "op" + string id + ".val = op" + string id2 + ".val" 
-let genEqRV id vname = "op" + string id + ".val = " + vname
+let genEqRW id id2 = "op" + string id + ".rval = op" + string id2 + ".wval" 
+let genEqRV id vname = "op" + string id + ".rval = " + vname
 
 let rec genEqLoc i l cmds = 
     match cmds with 
@@ -82,47 +78,37 @@ let rec genEqLoc i l cmds =
     | _ :: cmds' -> genEqLoc i l cmds'  
     | [] -> [] 
 
-let rec genEq cmds = 
+let rec genEqs cmds = 
     match cmds with 
-    | Read (i,(_,l)) :: cmds' -> (genEqLoc i l cmds') @ (genEq cmds') 
-    | c :: cmds' -> genEq cmds'
-    | [] -> [] 
+    | Read (i,(_,l)) :: cmds' -> (genEqLoc i l cmds') @ (genEqs cmds') 
+    | c :: cmds' -> genEqs cmds'
+    | [] -> []  
 
+//let rec readDeps id var cmds : List<string> = 
+//    match cmds with 
+//    | Write (id2, (_,v2)) :: cmds2 -> 
+//         (if (v2 = var) then [ genEqRW id id2 ] else [])  @ readDeps id var cmds2 
+//    | Read (id2, (_,v2)) :: cmds2 -> 
+//        if not (v2 = var) then readDeps id var cmds2 else [] 
+//    | AssumeEq (loc,vl) :: cmds2 -> [] 
+//    | _ -> [] 
 
-let rec readDeps id var cmds : List<string> = 
-    match cmds with 
-    | Write (id2, (_,v2)) :: cmds2 -> 
-         (if (v2 = var) then [ genEqRW id id2 ] else [])  @ readDeps id var cmds2 
-    | Read (id2, (_,v2)) :: cmds2 -> 
-        if not (v2 = var) then readDeps id var cmds2 else [] 
-    | AssumeEq (loc,vl) :: cmds2 -> [] 
+let rec seqDefn names = 
+    match names with 
+    | a :: b :: rest -> ["(" + string a + "->" + string b + ")"] @ seqDefn (b :: rest) 
     | _ -> [] 
 
 let dispExec ((name, cmds) : string * List<Command>) : List<string> =
     let acts = getActions cmds in
-      [ "pred " + name + " [dom : set Action, sb : Action -> Action,"] @   
-      [ "           " + dispVarDecl cmds + " : Loc," + dispValDecl cmds + " : Val ] { "] @
+      [ "pred " + name + " [ dom : set Action, sb : Action -> Action,"] @   
+      [ "           " + dispVarDecl cmds + " : Loc, " + dispValDecl cmds + " : Val ] { "] @
       [ "  sb in (dom -> dom)" ] @ 
       [ "  some disj " + (List.map actName acts |> intersperse ", ") + " : Action | { "] @ 
       [ "    dom = " + (List.map actName acts |> intersperse " + ") ] @ 
-      [ "    sb = " + (List.map actName acts |> intersperse " -> ") ] @ 
+      [ "    sb = " + (List.map actName acts |> seqDefn |> intersperse " + ") ] @ 
       (List.map (fun c -> "    " + (actName c) + ".loc = " + (getActionLoc c)) acts) @ 
       (List.map (fun c -> "    " + (actName c) + " in " + (actKind c)) acts) @ 
-      (List.map ((+) "    ") (genEq cmds)) @ 
+      (List.map ((+) "    ") (genEqs cmds)) @ 
       [ "  }"] @  
       [ "}"] 
-
-
  
-///// Sample query  
-//pred write2[ dom : set Action, sb : Action -> Action, 
-//             l : Loc, v, v' : Val ] { 
-//  some disj r1, r2 : Write | { 
-//    r1.loc + r2.loc = l 
-//    r1.wval = v 
-//    r2.wval = v' 
-//    dom = r1 + r2 + Call + Ret 
-//    r1 -> r2 in sb 
-//    sb in (dom -> dom) 
-//  } 
-//} 
