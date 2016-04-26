@@ -23,9 +23,11 @@ let main argv =
     try match argv with 
             | [|first|] ->
                 let fg = freshGen () in  
-                match (parseFile fg) first with 
+                match parseFile first (parseOptScript fg) with 
                     | Success(result,_,_) -> 
-                        let res = dispExec result 
+                        printfn "Parse:\n %A" result 
+                        let res = dispOptPred result 
+                        printfn "Predicates:" 
                         for l in res do printfn "%s" l
                         0 
                     | Failure(errorMsg,_,_) -> printfn "Failure %s" errorMsg; 1 

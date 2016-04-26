@@ -28,13 +28,16 @@ type Command =
     | ValDecl of List<Ident>
     | Write of int * (Ident * Ident)
     | Read of int * (Ident * Ident)
-    | RMW of int * (Ident * Ident * Ident) 
+    | RMW of int * (Ident * Ident * Ident * Ident)
 //    | Choice of Command * Command 
 //    | Cond of BExp * List<Command>
     | AssumeEq of Ident * Ident
 
 /// Parse comment 
 let com = skipString "//" .>> skipRestOfLine true
+
+/// Parse a section separator 
+let sepr = skipString "/**" .>> skipRestOfLine true
 
 /// Parse whitespace
 let ws = skipMany (com <|> spaces1) 
@@ -56,7 +59,7 @@ let parseLocDecl = skipString "local" >>. ws >>. parseIdentList |>> LocDecl
 let parseValDecl = skipString "val " >>. ws >>. parseIdentList |>> ValDecl 
 
 /// Note parseWrite / parseRead / parseRMW all pass a fresh-name generator
-/// This is a ref to a counter which populates the identifier field of the action. 
+/// This is a mutable counter which populates the identifier field of the action. 
 
 /// Parse a write action 
 let parseWrite fg = 
@@ -76,10 +79,11 @@ let parseRead fg =
 let parseRMW fg = 
     between (skipString "RMW(" >>. ws) 
             parseEndBrac 
-            (tuple3 (parseIdent .>> wscomma) 
+            (tuple4 (parseIdent .>> wscomma) 
+                    (parseIdent .>> wscomma) 
                     (parseIdent .>> wscomma) 
                     parseIdent) 
-    |>> fun (a,b,c) -> RMW (getFresh fg, (a, b, c)) 
+    |>> fun (a,b,c,d) -> RMW (getFresh fg, (a, b, c, d)) 
 
 /// Parse an assume operation 
 let parseAssume =
@@ -89,22 +93,36 @@ let parseAssume =
     |>> fun (a,b) -> AssumeEq (a,b)
 
 /// Parse the file name 
-let parseName = skipString "//" >>. ws >>. parseIdent .>> skipRestOfLine true 
+let parseName = skipString "/**" >>. ws >>. parseIdent .>> skipRestOfLine true 
 
 /// Parse a single command terminated by a semicolon 
-let parseCommand fg = (choice[ parseLocDecl
+let parseDecl fg =    (choice[ parseLocDecl
                                parseGlobDecl 
-                               parseValDecl
-                               (parseWrite fg)
-                               (parseRead fg) 
-                               (parseRMW fg) 
-                               parseAssume ]) .>> (ws .>> pstring ";" .>> ws) 
+                               parseValDecl ]) .>> (ws .>> pstring ";" .>> ws) 
+
+let parseCmd fg = (choice[ (parseWrite fg)
+                           (parseRead fg) 
+                           //(parseRMW fg) 
+                           parseAssume ]) .>> (ws .>> pstring ";" .>> ws) 
  
-/// Parse the whole script                                                  
-let parseScript fg : Parser<_, unit> = 
-    parseName .>>. many (parseCommand fg) .>> eof 
+/// Parse an optimisation script                                                  
+let parseOptScript fg : Parser<_, unit> = 
+    tuple4 parseName 
+           (many (parseDecl fg) .>> sepr)
+           (many (parseCmd fg) .>> sepr)
+           (many (parseCmd fg) .>> eof) 
+
+/// Parse a simple script 
+let parseSimpScript fg : Parser<_, unit> = 
+    tuple3 parseName 
+           (many (parseDecl fg) .>> sepr)
+           (many (parseCmd fg) .>> eof)
+    |>> (fun (a,b,c) -> (a, (b @ c)))  
+
 
 /// Parse a named file 
-let parseFile fg name = 
+let parseFile name parser = 
     let stream, streamName = (IO.File.OpenRead(name) :> IO.Stream, name) in 
-    runParserOnStream (parseScript fg) () streamName stream Text.Encoding.UTF8
+    runParserOnStream parser () streamName stream Text.Encoding.UTF8
+
+ 

@@ -1,9 +1,11 @@
-// Sample_opt 
+/** Sample_simp **/
 global x,y;
 val v, v2; 
+local l0, l1, ret; 
 
-// LHS: 
-write(x, l1); 
+/** LHS **/ 
+write(x, l0); 
 read(x, l1); 
 write(y, l1); 
-read(y,l3); 
+read(y,l2); 
+// RMW(y,l0,l1,ret); 
