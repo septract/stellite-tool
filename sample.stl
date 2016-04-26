@@ -1,0 +1,10 @@
+// Sample_opt 
+global x,y;
+val v, v2; 
+
+// LHS: 
+read(x, l1); 
+assume(l1==v); 
+write(y, l1); 
+read(x,l1); 
+assume(l1==v2); 
