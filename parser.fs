@@ -3,9 +3,15 @@ module Stellite.parser
 open System
 open FParsec 
 
-/// Hack to avoid warnings about type instantiation
-type UserState = unit 
-type Parser<'t> = Parser<'t, UserState>
+/// Creates a new fresh generator.
+let freshGen () = ref 0
+
+/// Takes a fresh number out of the generator.
+/// This method is NOT thread-safe.
+let getFresh fg =
+    let result = !fg
+    fg := !fg + 1
+    result
 
 /// Identifiers are strings
 type Ident = string 
@@ -23,51 +29,50 @@ type Command =
     | Write of int * (Ident * Ident)
     | Read of int * (Ident * Ident)
     | RMW of int * (Ident * Ident * Ident) 
-    | Choice of Command * Command 
+//    | Choice of Command * Command 
 //    | Cond of BExp * List<Command>
     | AssumeEq of Ident * Ident
 
-/// Creates a new fresh generator.
-let freshGen () = ref 0
-
-/// Takes a fresh number out of the generator.
-/// This method is NOT thread-safe.
-let getFresh fg =
-    let result = !fg
-    fg := !fg + 1
-    result
-
+/// Parse comment 
 let com = skipString "//" .>> skipRestOfLine true
 
+/// Parse whitespace
 let ws = skipMany (com <|> spaces1) 
 
+/// Parse a comma surrounded by whitespace
 let wscomma = ws >>. skipString "," .>> ws 
 
+/// Parse an end bracket
 let parseEndBrac = (ws .>> skipString ")") 
 
+/// Parse an identifier
 let parseIdent = many1Chars2 (pchar '_' <|> asciiLetter)
                           (pchar '_' <|> asciiLetter <|> digit)
-
 let parseIdentList = sepBy parseIdent wscomma
 
+/// Parse declaration lists 
 let parseGlobDecl = skipString "global " >>. ws >>. parseIdentList |>> GlobDecl 
-
 let parseLocDecl = skipString "local" >>. ws >>. parseIdentList |>> LocDecl 
-
 let parseValDecl = skipString "val " >>. ws >>. parseIdentList |>> ValDecl 
 
+/// Note parseWrite / parseRead / parseRMW all pass a fresh-name generator
+/// This is a ref to a counter which populates the identifier field of the action. 
+
+/// Parse a write action 
 let parseWrite fg = 
     between (skipString "write(" >>. ws) 
             parseEndBrac 
             (tuple2 parseIdent (wscomma >>. parseIdent))
     |>> fun (a,b) -> Write (getFresh fg, (a, b)) 
 
+/// Parse a read action
 let parseRead fg = 
     between (skipString "read(" >>. ws) 
             parseEndBrac 
             (tuple2 parseIdent (wscomma >>. parseIdent))
     |>> fun (a,b) -> Read (getFresh fg, (a, b)) 
 
+/// Parse a RMW action 
 let parseRMW fg = 
     between (skipString "RMW(" >>. ws) 
             parseEndBrac 
@@ -76,21 +81,30 @@ let parseRMW fg =
                     parseIdent) 
     |>> fun (a,b,c) -> RMW (getFresh fg, (a, b, c)) 
 
+/// Parse an assume operation 
 let parseAssume =
     between (skipString "assume(" >>. ws)
             parseEndBrac 
             (tuple2 parseIdent (ws >>. skipString "==" >>. ws >>. parseIdent) ) 
     |>> fun (a,b) -> AssumeEq (a,b)
 
+/// Parse the file name 
 let parseName = skipString "//" >>. ws >>. parseIdent .>> skipRestOfLine true 
 
+/// Parse a single command terminated by a semicolon 
 let parseCommand fg = (choice[ parseLocDecl
                                parseGlobDecl 
                                parseValDecl
                                (parseWrite fg)
                                (parseRead fg) 
-                               //(parseRMW fg) 
+                               (parseRMW fg) 
                                parseAssume ]) .>> (ws .>> pstring ";" .>> ws) 
-                   
-let parseScript fg : Parser<_> = 
+ 
+/// Parse the whole script                                                  
+let parseScript fg : Parser<_, unit> = 
     parseName .>>. many (parseCommand fg) .>> eof 
+
+/// Parse a named file 
+let parseFile fg name = 
+    let stream, streamName = (IO.File.OpenRead(name) :> IO.Stream, name) in 
+    runParserOnStream (parseScript fg) () streamName stream Text.Encoding.UTF8

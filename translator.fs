@@ -2,64 +2,48 @@
 
 open Stellite.parser
 
+// TODO: refactor so actions are a different subtype? 
+
+// Concat a list of strings with a fixed string in between
 let rec intersperse i xs = 
     match xs with
     | [] -> ""  
     | [x] -> x 
     | x::y::ys -> x + i + intersperse i (y::ys)
 
-// TODO: Should refactor these two into one fold :p 
+/// Display the declared variable names
 let dispVarDecl cmds = 
-    List.map (fun c -> match c with 
-                       | GlobDecl vs -> vs  
-                       | _ -> []) 
-             cmds
-    |> List.concat |> intersperse ", "   
+    List.map (function | GlobDecl vs -> vs 
+                           | _ -> []) cmds 
+    |> List.concat |> intersperse ", "
 
+/// Display the declared values
 let dispValDecl cmds = 
-    List.map (fun c -> match c with 
-                       | ValDecl vs -> vs  
-                       | _ -> []) 
-             cmds
+    List.map (function | ValDecl vs -> vs  
+                       | _ -> []) cmds
     |> List.concat |> intersperse ", "   
 
-let isAct x = 
-    match x with 
-    | Write _ | Read _ | RMW _ -> true
-    | _ -> false 
+/// Check whether a command is an action
+let isAct = function | Write _ | Read _ | RMW _ -> true
+                     | _ -> false 
 
-//let countActions = 
-//    List.fold (fun a x -> if (isAct x) then a+1 else a) 0 
-
-let rec dispN (str : string) (i : int) : List<string> = 
-    match i with 
-    | 0 -> []  
-    | _ -> dispN str (i-1) @ [str + (string i)] 
-
-//let setLoc a i = 
-//    match a with 
-//    | Write (a,b) | Read (a,b) -> "op" + string i + ".loc = " + a 
-//    | RMW (a,b,c) -> "ERROR"
-//    | _ -> "ERROR" 
-
-let getActions = 
-    List.filter (fun c -> match c with 
-                          | Write _ | Read _ | RMW _ -> true 
-                          | _ -> false )               
-
+/// Get the identifier for an action 
 let getActionId a = 
     match a with 
     | Write (i,_) | Read (i,_) | RMW (i,_) -> i
     | _ -> failwith "getActionId: not an action!" 
 
+/// Get the variable for an action 
 let getActionLoc a = 
     match a with 
     | Write (_,(x,_)) | Read (_,(x,_)) -> x
     | RMW (_,(x,_,_)) -> x
     | _ -> failwith "getActionLoc: not an action!" 
 
+/// Generate the name for the action. 
 let actName c = "op" + string (getActionId c)
 
+/// Get the correct set for the action. 
 let actKind c = 
     match c with 
     | Write _ -> "Write"
@@ -67,9 +51,13 @@ let actKind c =
     | RMW _ -> "RMW" 
     | _ -> failwith "actKind: not an action!"
 
+/// Generate equality assertions for read-write and read-value pairs. 
+/// These represent the effect of local variables in the semantics
 let genEqRW id id2 = "op" + string id + ".rval = op" + string id2 + ".wval" 
 let genEqRV id vname = "op" + string id + ".rval = " + vname
 
+/// Generate equality assertions in a program suffix. This stops propagating when 
+/// we reach a read that assigns to the same local variable. 
 let rec genEqLoc i l cmds = 
     match cmds with 
     | Write (i',(_,l')) :: cmds' when l = l' -> [genEqRW i i'] @ (genEqLoc i l cmds') 
@@ -78,28 +66,21 @@ let rec genEqLoc i l cmds =
     | _ :: cmds' -> genEqLoc i l cmds'  
     | [] -> [] 
 
+/// Generate equality assertions arising from local variables. 
 let rec genEqs cmds = 
     match cmds with 
     | Read (i,(_,l)) :: cmds' -> (genEqLoc i l cmds') @ (genEqs cmds') 
     | c :: cmds' -> genEqs cmds'
     | [] -> []  
 
-//let rec readDeps id var cmds : List<string> = 
-//    match cmds with 
-//    | Write (id2, (_,v2)) :: cmds2 -> 
-//         (if (v2 = var) then [ genEqRW id id2 ] else [])  @ readDeps id var cmds2 
-//    | Read (id2, (_,v2)) :: cmds2 -> 
-//        if not (v2 = var) then readDeps id var cmds2 else [] 
-//    | AssumeEq (loc,vl) :: cmds2 -> [] 
-//    | _ -> [] 
-
+/// Helper function to convert a sequence of names into an Alloy sequence definition. 
 let rec seqDefn names = 
     match names with 
     | a :: b :: rest -> ["(" + string a + "->" + string b + ")"] @ seqDefn (b :: rest) 
     | _ -> [] 
 
 let dispExec ((name, cmds) : string * List<Command>) : List<string> =
-    let acts = getActions cmds in
+    let acts = (List.filter isAct) cmds in
       [ "pred " + name + " [ dom : set Action, sb : Action -> Action,"] @   
       [ "           " + dispVarDecl cmds + " : Loc, " + dispValDecl cmds + " : Val ] { "] @
       [ "  sb in (dom -> dom)" ] @ 

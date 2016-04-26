@@ -8,34 +8,27 @@ open FParsec.CharParsers
 open Stellite.parser
 open Stellite.translator 
 
-let parseFile fg name = 
-    let stream, streamName = (IO.File.OpenRead(name) :> IO.Stream, name) in 
-    runParserOnStream (parseScript fg) () streamName stream Text.Encoding.UTF8
-
-let testfile = "../../sample.stl"
+//let testfile = "../../sample.stl"
+//let maintest argv = 
+//    let fg = freshGen () in  
+//    match (parseFile fg) testfile with 
+//    | Success(result,_,_) -> 
+//        let res = dispExec result 
+//        for l in res do printfn "%s" l
+//        0 
+//    | Failure(errorMsg,_,_) -> printfn "Failure %s" errorMsg; 1 
 
 [<EntryPoint>]
-let maintest argv = 
-    let fg = freshGen () in  
-    match (parseFile fg) testfile with 
-    | Success(result,_,_) -> 
-        printfn "Predicate:" 
-        let res = dispExec result 
-        for l in res do printfn "%s" l
-        0 
-    | Failure(errorMsg,_,_) -> printfn "Failure %s" errorMsg; 1 
-
-//let main argv = 
-//    try match argv with 
-//            | [|first|] ->
-//                let fg = freshGen () in  
-//                match (parseFile fg) first with 
-//                    | Success(result,_,_) -> 
-//                        printfn "Predicate:" 
-//                        let res = dispExec result 
-//                        for l in res do printfn "%s" l
-//                        0 
-//                    | Failure(errorMsg,_,_) -> printfn "Failure %s" errorMsg; 1 
-//            | _ -> printfn "One argument expected"; 1
-//    with 
-//    | :? System.IO.FileNotFoundException -> printfn "Couldn't find the specified file!"; 1 
+let main argv = 
+    try match argv with 
+            | [|first|] ->
+                let fg = freshGen () in  
+                match (parseFile fg) first with 
+                    | Success(result,_,_) -> 
+                        let res = dispExec result 
+                        for l in res do printfn "%s" l
+                        0 
+                    | Failure(errorMsg,_,_) -> printfn "Failure %s" errorMsg; 1 
+            | _ -> printfn "One argument expected"; 1
+    with 
+    | :? System.IO.FileNotFoundException -> printfn "Couldn't find the specified file!"; 1 
