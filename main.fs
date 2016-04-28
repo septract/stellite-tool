@@ -26,7 +26,7 @@ let main argv =
                 match parseFile first (parseOptScript fg) with 
                     | Success(result,_,_) -> 
                         printfn "Parse:\n %A" result 
-                        let res = dispOptPred result 
+                        let res = dispOptPredRelat result 
                         printfn "Predicates:" 
                         for l in res do printfn "%s" l
                         0 

@@ -92,9 +92,14 @@ let rec seqDefn names : string =
     | a :: b :: rest -> " + (" + string a + "->" + string b + ")" + seqDefn (b :: rest) 
     | _ -> "" 
 
+
+(*********************************************************************
+ *   Predicates for the simpler C11 model
+ *********************************************************************) 
+
 // TODO: deal with the case where we don't declare any explicit values? 
 
-let dispSimpPred ((name, cmds) : string * List<Command>) : List<string> =
+let dispSimpPredHO ((name, cmds) : string * List<Command>) : List<string> =
     let acts = (List.filter isAct) cmds in
       [ "pred " + name ] @
       [ "         [ dom : set Action, sb : Action -> Action,"] @   
@@ -109,7 +114,7 @@ let dispSimpPred ((name, cmds) : string * List<Command>) : List<string> =
       [ "  }"] @  
       [ "}"] 
 
-let dispHarnessPred name decl = 
+let dispHarnessPredHO name decl = 
     [ "pred " + name ] @ 
     [ "     [ dom, dom' : set Action, sb, sb' : Action -> Action ] {" ] @ 
     [ "       some " + dispVarDecl decl + " : Glob & Atomic, " + dispValDecl decl + " : Val | {" ] @ 
@@ -119,15 +124,65 @@ let dispHarnessPred name decl =
     [ "}" ] 
 
 
-let dispOptPred ((name,decl,lhs,rhs) : string * List<Command> * List<Command> * List<Command>) 
+let dispOptPredHO ((name,decl,lhs,rhs) : string * List<Command> * List<Command> * List<Command>) 
                 : List<string> = 
-    dispSimpPred (name+"LHS", (decl @ lhs)) @ 
-    dispSimpPred (name+"RHS", (decl @ rhs)) @ 
-    dispHarnessPred name decl 
+    dispSimpPredHO (name+"LHS", (decl @ lhs)) @ 
+    dispSimpPredHO (name+"RHS", (decl @ rhs)) @ 
+    dispHarnessPredHO name decl 
 
-//pred RaRelim [ dom, dom': Action, sb, sb' : Action -> Action] { 
-//  some l : Glob & Atomic, v: Val | { 
-//    read1[ dom - Extern, sb, l, v ] 
-//    read2[ dom' - Extern, sb', l, v ] 
-//  } 
-//} 
+
+(*********************************************************************
+ *  Display functions for the more advanced, relational C11 model. 
+ *********************************************************************) 
+
+let dispSimpPredRelat ((name, cmds) : string * List<Command>) : List<string> =
+    let acts = (List.filter isAct) cmds in
+      [ "pred " + name ] @
+      [ "         [ dom : set Action, kind : Action -> Kind, loc : Action -> Loc," ] @
+      [ "           sb : Action -> Action, " + dispVarDecl cmds + " : Loc, " + dispValDecl cmds + " : Val ] { "] @
+      [ "  sb in (dom -> dom)" ] @ 
+      [ "  some disj " + (List.map actName acts |> intersperse ", ") + " : Action | { "] @ 
+      [ "    dom = " + (List.map actName acts |> intersperse " + ") + " + Call + Ret" ] @ 
+      [ "    (none -> none)" + (List.map actName acts |> seqDefn) + " in sb" ] @ 
+      (List.map (fun c -> "    " + (actName c) + ".loc = " + (getActionLoc c)) acts) @ 
+      (List.map (fun c -> "    " + (actName c) + " in " + (actKind c)) acts) @ 
+      (List.map ((+) "    ") (genEqs cmds)) @ 
+      [ "  }"] @  
+      [ "}"] 
+
+let dispHarnessPredRelat name decl = 
+    [ "pred " + name ] @ 
+    [ "     [ dom, dom' : set Action, kind, kind' : Action -> Kind,"] @
+    [ "       loc, loc' : Action -> Loc, sb, sb' : Action -> Action,"] @ 
+    [ "       rfint, rfint' : Action -> Action ] {" ] @ 
+    [ "       some " + dispVarDecl decl + " : Glob & Atomic, " + dispValDecl decl + " : Val | {" ] @ 
+    [ "    " + name + "LHS[dom - Extern, kind, loc, sb, rfint, " + dispVarValDecl decl + "]" ] @ 
+    [ "    " + name + "RHS[dom' - Extern, sb', kind', loc', sb', rfint', " + dispVarValDecl decl + "]" ] @ 
+    [ "  }" ] @ 
+    [ "}" ] 
+
+
+let dispOptPredRelat ((name,decl,lhs,rhs) : string * List<Command> * List<Command> * List<Command>) 
+                : List<string> = 
+    dispSimpPredRelat (name+"LHS", (decl @ lhs)) @ 
+    dispSimpPredRelat (name+"RHS", (decl @ rhs)) @ 
+    dispHarnessPredRelat name decl 
+
+
+(* idea: 
+ *  Define an axiom saying that written values have to be consistent with the 
+ *  preceding read to the same location. This requires recording local variable
+ *  names in the representation somewhere. However, this is much more static than 
+ *  read values, and can be done on the LHS. 
+ * 
+ *  You could maybe also do this with the call / return actions, ie. project out 
+ *  from the structure of the execution using a predicate. Something like: 
+ * 
+ *    forall l in loc, final-written value of l is the same in the rhs execution
+ *                       /\ 
+ *                     first-read value of l is the same in the rhs execution 
+ * 
+ *  ...Of course, you'd also need to handle the case where you don't r / w to the
+ *  local variable. Need to think more about this. 
+ *) 
+
