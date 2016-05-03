@@ -21,7 +21,7 @@ https://www.xamarin.com/studio
 - In stellite-tool, build by running 
   > `$ xbuild`
  
-- The Stellite binary will be `starling-tool/bin/Debug/starling.exe`
+- The Stellite binary will be `stellite-tool/bin/Debug/stellite.exe`
 
 - run Stellite with: 
   > `$ mono bin/Debug/stellite-tool.exe sample_opt.stl`
