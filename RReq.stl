@@ -1,0 +1,10 @@
+/** RReqTest *//
+global x; 
+local l; 
+val v; 
+
+/** Optimised **/ 
+read(x,l); 
+
+/** Unoptimised **/ 
+read(x,l); 
