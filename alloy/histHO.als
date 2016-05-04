@@ -308,7 +308,7 @@ check hist_incl {
       is_core[sb'] 
       
       // Optimisation definition 
-      RRElim[dom, dom', sb, sb'] 
+      RaRelim[dom, dom', sb, sb'] 
   } | 
   some hb', mo', rf' : Action -> Action | { 
       valid[dom', ^hb', sb', mo', rf'] 
@@ -316,7 +316,7 @@ check hist_incl {
       getguar[dom', ^hb'] in guar 
       getdeny[dom', ^hb', sb', mo', rf'] in deny 
   }
-} for 6 but 0 NonAtomic
+} for 7 but 0 NonAtomic
 
 
 /*************************************************/ 

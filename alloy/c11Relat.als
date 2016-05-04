@@ -1,13 +1,19 @@
 module c11Relat
+open util/relation
+
+// Disable non-atomics entirely
+fact { 
+  no NonAtomic 
+} 
 
 // TODO: refactor Call / Ret into Hist module?
 
 abstract sig Loc {} 
-sig Atomic, NonAtomic extends Loc {} 
-sig Glob, Thr in Loc {} 
+sig Glob, Thr extends Loc {} 
+sig Atomic, NonAtomic in Glob {} 
 
 sig Val {} 
-one sig Init in Val {} 
+one sig Init in Val {} // Magic initialisation value
 
 abstract sig Kind {} 
 one sig Read, Write, Spesh extends Kind {} 
@@ -15,39 +21,58 @@ one sig Read, Write, Spesh extends Kind {}
 // Took out RMW for the moment. 
 // RMW
 
-sig Action {} 
+abstract sig Action {} 
 sig Intern, Extern, Call, Ret extends Action {} 
 
 fact { 
   disj[ Glob, Thr ] 
   Glob + Thr = Loc 
-  Intern + Extern + Call + Ret = Action 
+  Atomic + NonAtomic = Glob 
+  // Intern + Extern + Call + Ret = Action 
+} 
+
+// Actions 
+pred locWF[ dom : set Action, kind : Action -> Kind, 
+            gloc : Action -> Glob, lloc : Action -> Thr ] { 
+    kind in dom -> one Kind 
+    gloc in (dom - (Call + Ret)) -> lone Glob
+    lloc in (dom - (Call + Ret)) -> lone Thr
+
+    all a : dom | { 
+      a in (Call + Ret) iff kind[a] in Spesh
+
+      // All reads and writes access global locations
+      kind[a] in Read + Write  iff  one a.gloc
+
+      kind[a] in Write implies { 
+        a in Intern iff one a.lloc 
+      } 
+
+      kind[a] in Read implies { 
+        a in Intern iff one a.lloc 
+      } 
+    } 
 } 
 
 // Values associated with actions correctly 
 pred valWF[ dom : set Action, kind : Action -> Kind, 
             gloc : Action -> Glob, lloc : Action -> Thr, 
             wv, rv : Action -> Val ] { 
-    kind in dom -> one Kind 
-    wv in dom -> lone Val
-    rv in dom -> lone Val
-    gloc in dom -> lone Glob
-    lloc in dom -> lone Thr
+    wv in (dom - (Call + Ret)) -> lone Val
+    rv in (dom - (Call + Ret)) -> lone Val
 
     all a : dom | { 
-      kind[a] in Spesh iff a in (Call + Ret) 
-
-      kind[a] in Read + Write implies { 
-        one a.gloc 
-        lone lloc 
+      // Writes have a written value, reads have a read value
+      kind[a] in Write iff { 
+        one a.wv
+        //one a.rv iff (a in Intern) 
       } 
 
-      kind[a] in Write iff one a.wv
-      kind[a] in Read iff one a.rv
+      kind[a] in Read iff { 
+        one a.rv
+        //one a.wv iff (a in Intern)  
+      } 
     } 
-
-    // No RMW over atomic locations
-    // no (kind.RMW).loc & NonAtomic
 } 
 
 run valWF for 7
@@ -60,13 +85,9 @@ pred is_core [ r : Action -> Action ] {
 
 // Pre-execution structure 
 pred SBwf [ dom : set Action, kind : Action -> Kind,
-            loc : Action -> Loc, wv, rv : Action -> Val, 
             sb: Action -> Action ] {
   // Acyclic 
   no iden & ^sb     
-
-  // Can't write initialisation value
-  no (dom & kind.Write).wv & Init 
 } 
 
 pred HBacyc [ dom : set Action, kind : Action -> Kind,
@@ -75,38 +96,58 @@ pred HBacyc [ dom : set Action, kind : Action -> Kind,
   no iden & ^hb 
 } 
 
-// Write the value of the preceding read accessing the same 
-// local variable. 
-pred RFwfLoc [ dom : set Action, kind : Action -> Kind, 
-               gloc : Action -> Loc, lloc : Action -> Loc, 
-               wv, rv : Action -> Val, 
-               hb, sb, mo, rf : Action -> Action ] { 
- 
-} 
+// TODO: not sure if this is needed
+
+// pred goodCallmap [ intloc : set Thr, callmap : Thr -> Val ] { 
+//   relation/dom[callmap] = intloc  
+// } 
 
 // Write the value given at the call to the same local variable.
-pred RFwfLoc [ dom : set Action, kind : Action -> Kind, 
+pred RFwfLocal [ dom : set Action, kind : Action -> Kind, 
                 gloc : Action -> Loc, lloc : Action -> Loc, 
+                callmap, retmap : Thr -> Val, 
                 wv, rv : Action -> Val, 
-                callval : Thr -> Val, retval : Thr -> Val, 
                 hb, sb, mo, rf : Action -> Action ] { 
-  all w : dom & kind.Write | { 
-    all r : dom & kind.Read | { 
+  callmap in Thr -> one Val 
+  retmap in Thr -> one Val 
+
+  // Writes take the correct local var value 
+  all w : dom & kind.Write | {
+    // Take the value of the sb-latest read on this thr-local var 
+    {all r : dom & kind.Read | { 
       r -> w in ^sb 
       r.lloc = w.lloc 
       no r' : dom & kind.Read | { 
         (r -> r') + (r' -> w) in ^sb 
         r'.lloc = w.lloc 
       }  
-    } implies r.rv = w.wv
+    } implies r.rv = w.wv} 
   and 
-    { Call -> w in ^sb 
+    // If none exists, take the value in the callmap
+    {{ Call -> w in ^sb 
       no r' : dom & kind.Read | { 
         (Call -> r') + (r' -> w) in ^sb 
         r'.lloc = w.lloc 
       }  
-    } implies w.wv = (w.lloc).callval
+    } implies w.wv = (w.lloc).callmap } 
   } 
+
+  // the return map takes the right local var value
+  all t : Thr, r : dom & (kind.Read + Ret) | { 
+    r -> Ret in ^sb
+    r.lloc = t 
+    no r' : dom & kind.Read | { 
+      (r -> r') + (r' -> Call) in ^sb 
+      r'.lloc = t 
+    }
+    not (r -> Call) + (Call -> Ret) in ^sb 
+  } implies { 
+    r in Call implies t.callmap = t.retmap  
+              else r.rv = t.retmap  
+  } 
+
+  // TODO : take value of callmap
+  
 } 
 
 pred RFwf [ dom : set Action, kind : Action -> Kind,
@@ -195,23 +236,29 @@ pred DRF [ dom : set Action, kind : Action -> Kind,
 
 
 pred valid [ dom : set Action, kind : Action -> Kind,
-             loc : Action -> Loc, wv, rv : Action -> Val, 
+             gloc, lloc: Action -> Loc, 
+             callmap, retmap : Thr -> Val, 
+             wv, rv : Action -> Val, 
              hb, sb, mo, rf : Action -> Action ] {
   // Sanity conditions
   hb + sb + mo + rf in (dom -> dom) 
 
   // Pre-execution structure 
-  valWF[dom, kind, loc, (none -> none), wv, rv]
-  SBwf[dom, kind, loc, wv, rv, sb] 
+  locWF[dom, kind, gloc, lloc] 
+  valWF[dom, kind, gloc, lloc, wv, rv]
+  SBwf[dom, kind, sb]
+
+  // Local variable handling 
+  RFwfLocal[dom, kind, gloc, lloc, callmap, retmap, wv, rv, hb, sb, mo, rf] 
 
   // Axioms 
-  HBacyc[dom, kind, loc, wv, rv, hb, sb, mo, rf] 
-  RFwf[dom, kind, loc, wv, rv, hb, sb, mo, rf] 
-  HBdef[dom, kind, loc, wv, rv, hb, sb, mo, rf] 
-  CoWR[dom, kind, loc, wv, rv, hb, sb, mo, rf] 
-  MOwf[dom, kind, loc, wv, rv, hb, sb, mo, rf] 
-  HBvsMO[dom, kind, loc, wv, rv, hb, sb, mo, rf] 
-  RFNonAtomic[dom, kind, loc, wv, rv, hb, sb, mo, rf] 
+  HBacyc[dom, kind, gloc, wv, rv, hb, sb, mo, rf] 
+  RFwf[dom, kind, gloc, wv, rv, hb, sb, mo, rf] 
+  HBdef[dom, kind, gloc, wv, rv, hb, sb, mo, rf] 
+  CoWR[dom, kind, gloc, wv, rv, hb, sb, mo, rf] 
+  MOwf[dom, kind, gloc, wv, rv, hb, sb, mo, rf] 
+  HBvsMO[dom, kind, gloc, wv, rv, hb, sb, mo, rf] 
+  RFNonAtomic[dom, kind, gloc, wv, rv, hb, sb, mo, rf] 
 } 
 
 pred sequential [ dom : set Action, sb : Action -> Action ] { 
@@ -225,124 +272,127 @@ pred sequential [ dom : set Action, sb : Action -> Action ] {
 
 run valid_run
   { some dom : set Action, kind : Action -> Kind,
-               loc : Action -> Loc, wv, rv : Action -> Val, 
+               gloc, lloc : Action -> Loc, 
+               callmap, retmap : Thr -> Val, 
+               wv, rv : Action -> Val, 
                hb, sb, mo, rf : Action -> Action | {
-     valid[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]
-     //DRF[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]  
+     valid[dom, kind, gloc, lloc, callmap, retmap, wv, rv, ^hb, sb, mo, rf]
      dom = Action 
-     Loc = dom.loc 
+     Loc = dom.(gloc + lloc)
      is_core[hb] 
      is_core[sb] 
-     some Call
+     no Call + Ret
   } 
-} for 6 but 0 NonAtomic 
+} for 6 but exactly 2 Thr, 0 Extern
 
  
 run seq_run
   { some dom : set Action, kind : Action -> Kind,
-               loc : Action -> Loc, wv, rv : Action -> Val, 
+               gloc, lloc : Action -> Loc, 
+               callmap, retmap : Thr -> Val, 
+               wv, rv : Action -> Val, 
                hb, sb, mo, rf : Action -> Action | {
-     valid[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]
+     valid[dom, kind, gloc, lloc, callmap, retmap, wv, rv, ^hb, sb, mo, rf]
      dom = Action 
-     Loc = dom.loc 
+     Loc = dom.(gloc + lloc) 
      is_core[hb] 
      is_core[sb] 
      // check sequential 
      sequential[dom, sb]  
-     some Call 
+     no Call + Ret
   } 
 } for 6
  
 
-// Executions with no non-atomics are automatically DRF 
-check atomic_DRF 
-  { all dom : set Action, kind : Action -> Kind,
-               loc : Action -> Loc, wv, rv : Action -> Val, 
-               hb, sb, mo, rf : Action -> Action |
-    valid[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]  
-       implies DRF[dom, kind, loc, wv, rv, ^hb, sb, mo, rf] 
-  }
-  for 30
-  but 0 NonAtomic 
-
-// Sequential executions are automatically DRF 
-check seq_DRF 
-  { all dom : set Action, kind : Action -> Kind,
-              loc : Action -> Loc, wv, rv : Action -> Val, 
-              hb, sb, mo, rf : Action -> Action |
-    valid[dom, kind, loc, wv, rv, ^hb, sb, mo, rf] 
-      and sequential[dom, sb] 
-    implies DRF[dom, kind, loc, wv, rv, ^hb, sb, mo, rf] 
-  } 
-  for 10
-
-run litmus_SB 
-  { some dom : set Action, kind : Action -> Kind,
-         loc : Action -> Loc, wv, rv : Action -> Val, 
-         hb, sb, mo, rf : Action -> Action | {
-      valid[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]
-      DRF[dom, kind, loc, wv, rv, ^hb, sb, mo, rf] 
-      dom = Action 
-      Loc = dom.loc 
-      is_core[hb] 
-      is_core[sb] 
-      // litmus test 
-      code_SB[dom, kind, loc, wv, rv, ^hb, sb, mo, rf] 
-    }
-  } 
-  for 6 
-  but 0 NonAtomic, 2 Val 
-
-run litmus_IRIW 
-  { some dom : set Action, kind : Action -> Kind,
-         loc : Action -> Loc, wv, rv : Action -> Val, 
-         hb, sb, mo, rf : Action -> Action | {
-      valid[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]
-      DRF[dom, kind, loc, wv, rv, ^hb, sb, mo, rf] 
-      dom = Action 
-      Loc = dom.loc 
-      is_core[hb] 
-      is_core[sb] 
-      // litmus test 
-      code_IRIW[dom, kind, loc, wv, rv, ^hb, sb, mo, rf] 
-    }
-  } 
-  for 10
-  but 0 NonAtomic, 2 Val 
-
-/*************************************************/ 
-/* Litmus test code                              */ 
-/*************************************************/ 
-
-// SB litmus test without initialisation
-pred code_SB [ dom : set Action, kind : Action -> Kind,
-               loc : Action -> Loc, wv, rv : Action -> Val, 
-               hb, sb, mo, rf : Action -> Action ] { 
-  some disj wx, wy : kind.Write |  
-  some disj rx, ry : kind.Read |  { 
-    dom = (wx + wy + rx + ry)
-    (wx -> ry) + (wy -> rx) in sb // allow stronger sb  
-    one wx.loc + rx.loc 
-    one wy.loc + ry.loc 
-    no wx.loc & wy.loc
-    no rf // read from initialisation 
-  } 
-} 
-
-// Comment from JPW - alloy simplifies rel = ((a->b) + (c->d)... 
-// Refactor this code? 
-
-pred code_IRIW [ dom : set Action, kind : Action -> Kind,
-                 loc : Action -> Loc, wv, rv : Action -> Val, 
-                 hb, sb, mo, rf : Action -> Action ] { 
-  some disj wx, wy : kind.Write | 
-  some disj r1x, r2x, r1y, r2y : kind.Read | { 
-    dom = wx + wy + r1x + r2x + r1y + r2y 
-    rf = ((wx -> r1x) + (wy -> r2y)) 
-    ((r1x -> r1y) + (r2y -> r2x)) in sb
-    one wx.loc + r1x.loc + r2x.loc 
-    one wy.loc + r1y.loc + r2y.loc 
-    no wx.loc & wy.loc 
-  } 
-} 
-
+// // Executions with no non-atomics are automatically DRF 
+// check atomic_DRF 
+//   { all dom : set Action, kind : Action -> Kind,
+//                loc : Action -> Loc, wv, rv : Action -> Val, 
+//                hb, sb, mo, rf : Action -> Action |
+//     valid[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]  
+//        implies DRF[dom, kind, loc, wv, rv, ^hb, sb, mo, rf] 
+//   }
+//   for 30
+//   but 0 NonAtomic 
+// 
+// // Sequential executions are automatically DRF 
+// check seq_DRF 
+//   { all dom : set Action, kind : Action -> Kind,
+//               loc : Action -> Loc, wv, rv : Action -> Val, 
+//               hb, sb, mo, rf : Action -> Action |
+//     valid[dom, kind, loc, wv, rv, ^hb, sb, mo, rf] 
+//       and sequential[dom, sb] 
+//     implies DRF[dom, kind, loc, wv, rv, ^hb, sb, mo, rf] 
+//   } 
+//   for 10
+// 
+// run litmus_SB 
+//   { some dom : set Action, kind : Action -> Kind,
+//          loc : Action -> Loc, wv, rv : Action -> Val, 
+//          hb, sb, mo, rf : Action -> Action | {
+//       valid[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]
+//       DRF[dom, kind, loc, wv, rv, ^hb, sb, mo, rf] 
+//       dom = Action 
+//       Loc = dom.loc 
+//       is_core[hb] 
+//       is_core[sb] 
+//       // litmus test 
+//       code_SB[dom, kind, loc, wv, rv, ^hb, sb, mo, rf] 
+//     }
+//   } 
+//   for 6 
+//   but 0 NonAtomic, 2 Val 
+// 
+// run litmus_IRIW 
+//   { some dom : set Action, kind : Action -> Kind,
+//          loc : Action -> Loc, wv, rv : Action -> Val, 
+//          hb, sb, mo, rf : Action -> Action | {
+//       valid[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]
+//       DRF[dom, kind, loc, wv, rv, ^hb, sb, mo, rf] 
+//       dom = Action 
+//       Loc = dom.loc 
+//       is_core[hb] 
+//       is_core[sb] 
+//       // litmus test 
+//       code_IRIW[dom, kind, loc, wv, rv, ^hb, sb, mo, rf] 
+//     }
+//   } 
+//   for 10
+//   but 0 NonAtomic, 2 Val 
+// 
+// /*************************************************/ 
+// /* Litmus test code                              */ 
+// /*************************************************/ 
+// 
+// // SB litmus test without initialisation
+// pred code_SB [ dom : set Action, kind : Action -> Kind,
+//                loc : Action -> Loc, wv, rv : Action -> Val, 
+//                hb, sb, mo, rf : Action -> Action ] { 
+//   some disj wx, wy : kind.Write |  
+//   some disj rx, ry : kind.Read |  { 
+//     dom = (wx + wy + rx + ry)
+//     (wx -> ry) + (wy -> rx) in sb // allow stronger sb  
+//     one wx.loc + rx.loc 
+//     one wy.loc + ry.loc 
+//     no wx.loc & wy.loc
+//     no rf // read from initialisation 
+//   } 
+// } 
+// 
+// // Comment from JPW - alloy simplifies rel = ((a->b) + (c->d)... 
+// // Refactor this code? 
+// 
+// pred code_IRIW [ dom : set Action, kind : Action -> Kind,
+//                  loc : Action -> Loc, wv, rv : Action -> Val, 
+//                  hb, sb, mo, rf : Action -> Action ] { 
+//   some disj wx, wy : kind.Write | 
+//   some disj r1x, r2x, r1y, r2y : kind.Read | { 
+//     dom = wx + wy + r1x + r2x + r1y + r2y 
+//     rf = ((wx -> r1x) + (wy -> r2y)) 
+//     ((r1x -> r1y) + (r2y -> r2x)) in sb
+//     one wx.loc + r1x.loc + r2x.loc 
+//     one wy.loc + r1y.loc + r2y.loc 
+//     no wx.loc & wy.loc 
+//   } 
+// } 
+// 

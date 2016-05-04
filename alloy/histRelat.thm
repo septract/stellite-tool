@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<alloy>
+
+<view>
+
+<defaultnode/>
+
+<defaultedge/>
+
+<node>
+   <type name="Int"/>
+   <type name="String"/>
+   <type name="univ"/>
+   <type name="c11Relat/Action"/>
+   <type name="c11Relat/Atomic"/>
+   <type name="c11Relat/Call"/>
+   <type name="c11Relat/Extern"/>
+   <type name="c11Relat/Intern"/>
+   <type name="c11Relat/Loc"/>
+   <type name="c11Relat/NonAtomic"/>
+   <type name="c11Relat/Read"/>
+   <type name="c11Relat/Ret"/>
+   <type name="c11Relat/Spesh"/>
+   <type name="c11Relat/Write"/>
+   <type name="seq/Int"/>
+   <set name="$hist_run_dom" type="c11Relat/Action"/>
+   <set name="$hist_run_l" type="c11Relat/Atomic"/>
+   <set name="$hist_run_v" type="c11Relat/Val"/>
+   <set name="$read1_r1" type="c11Relat/Action"/>
+   <set name="c11Relat/Glob" type="c11Relat/Loc"/>
+   <set name="c11Relat/Init" type="c11Relat/Val"/>
+   <set name="c11Relat/Thr" type="c11Relat/Loc"/>
+   <set name="integer/Bit" type="Int"/>
+</node>
+
+<node visible="no">
+   <type name="c11Relat/Kind"/>
+   <type name="c11Relat/Val"/>
+</node>
+
+<edge attribute="yes">
+   <relation name="$hist_run_callmap"> <type name="c11Relat/Loc"/> <type name="c11Relat/Val"/> </relation>
+   <relation name="$hist_run_gloc"> <type name="c11Relat/Action"/> <type name="c11Relat/Loc"/> </relation>
+   <relation name="$hist_run_kind"> <type name="c11Relat/Action"/> <type name="c11Relat/Kind"/> </relation>
+   <relation name="$hist_run_lloc"> <type name="c11Relat/Action"/> <type name="c11Relat/Loc"/> </relation>
+   <relation name="$hist_run_rv"> <type name="c11Relat/Action"/> <type name="c11Relat/Val"/> </relation>
+   <relation name="$hist_run_wv"> <type name="c11Relat/Action"/> <type name="c11Relat/Val"/> </relation>
+</edge>
+
+</view>
+
+</alloy>
