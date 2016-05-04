@@ -23,7 +23,7 @@ type Ident = string
 
 // TODO would be nice to separate actions by type 
 type Command = 
-    | LocDecl of List<Ident>
+    | ThrDecl of List<Ident>
     | GlobDecl of List<Ident>
     | ValDecl of List<Ident>
     | Write of int * (Ident * Ident)
@@ -55,7 +55,7 @@ let parseIdentList = sepBy parseIdent wscomma
 
 /// Parse declaration lists 
 let parseGlobDecl = skipString "global " >>. ws >>. parseIdentList |>> GlobDecl 
-let parseLocDecl = skipString "local" >>. ws >>. parseIdentList |>> LocDecl 
+let parseThrDecl = skipString "local" >>. ws >>. parseIdentList |>> ThrDecl 
 let parseValDecl = skipString "val " >>. ws >>. parseIdentList |>> ValDecl 
 
 /// Note parseWrite / parseRead / parseRMW all pass a fresh-name generator
@@ -96,7 +96,7 @@ let parseAssume =
 let parseName = skipString "/**" >>. ws >>. parseIdent .>> skipRestOfLine true 
 
 /// Parse a single command terminated by a semicolon 
-let parseDecl fg =    (choice[ parseLocDecl
+let parseDecl fg =    (choice[ parseThrDecl
                                parseGlobDecl 
                                parseValDecl ]) .>> (ws .>> pstring ";" .>> ws) 
 
