@@ -209,7 +209,7 @@ run hist_run
      guar = getguar[dom, hb]
      deny = getdeny[dom, kind, gloc, wv, rv, ^hb, sb, mo, rf] 
   } 
-} for 8 
+} for 8 but exactly 2 Extern 
 
 // run hist_incl_run { 
 //   some dom : set Action, hb, sb, mo, rf : Action -> Action, 
@@ -289,11 +289,11 @@ check hist_incl {
       Loc = dom.(lloc + gloc) + dom'.(lloc' + gloc') 
       is_core[hb] 
       is_core[sb] 
-      one Call // & (dom + dom') 
-      one Ret // & (dom + dom') 
+      one Call & (dom + dom') 
+      one Ret & (dom + dom') 
       
       // Optimisation definition 
-      RaRintro[dom, dom', kind, kind', gloc, gloc', lloc, lloc', sb, sb'] 
+      WtoRrepl[dom, dom', kind, kind', gloc, gloc', lloc, lloc', sb, sb'] 
 
       // Pre-execution structure
       preexecWF[dom, kind, gloc, lloc, sb] 
@@ -345,6 +345,30 @@ pred RaRintro [ dom, dom': Action,
   some g : Glob & Atomic, t : Thr | { 
     read2[ dom - Extern, kind, gloc, lloc, sb, g, t ] 
     read1[ dom' - Extern, kind', gloc', lloc', sb', g, t ] 
+  } 
+} 
+
+// Should be unsound 
+pred RtoWrepl [ dom, dom': Action, 
+                kind, kind' : Action -> Kind, 
+                gloc, gloc' : Action -> Glob, 
+                lloc, lloc' : Action -> Thr, 
+                sb, sb' : Action -> Action] { 
+  some g : Glob & Atomic, t : Thr | { 
+    write1[ dom - Extern, kind, gloc, lloc, sb, g, t ] 
+    read1[ dom' - Extern, kind', gloc', lloc', sb', g, t ] 
+  } 
+} 
+
+// Should be unsound 
+pred WtoRrepl [ dom, dom': Action, 
+                kind, kind' : Action -> Kind, 
+                gloc, gloc' : Action -> Glob, 
+                lloc, lloc' : Action -> Thr, 
+                sb, sb' : Action -> Action] { 
+  some g : Glob & Atomic, t : Thr | { 
+    read1[ dom - Extern, kind, gloc, lloc, sb, g, t ] 
+    write1[ dom' - Extern, kind', gloc', lloc', sb', g, t ] 
   } 
 } 
 
@@ -447,6 +471,18 @@ pred read2[ dom : set Action, kind : Action -> Kind,
     sb in (dom -> dom) 
   } 
 } 
+
+pred write1[ dom : set Action, kind : Action -> Kind,
+            gloc : Action -> Glob, lloc : Action -> Thr, 
+            sb : Action -> Action, g : Glob, t : Thr ] { 
+  some w1 : kind.Write | { 
+    w1.gloc = g 
+    w1.lloc = t 
+    dom = w1 + Call + Ret 
+    sb in (dom -> dom) 
+  } 
+} 
+
 
 // pred write1[ dom : set Action, kind : Action -> Kind,
 //              loc : Action -> Loc, wv, rv : Action -> Val,  

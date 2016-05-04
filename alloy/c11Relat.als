@@ -1,6 +1,8 @@
 module c11Relat
 open util/relation
 
+// TODO: Get rid of spesh, restrict Call / Ret to a singleton
+
 // Disable non-atomics entirely
 fact { 
   no NonAtomic 
@@ -21,17 +23,18 @@ one sig Read, Write, Spesh extends Kind {}
 // Took out RMW for the moment. 
 // RMW
 
+// Actions 
 abstract sig Action {} 
 sig Intern, Extern, Call, Ret extends Action {} 
 
+// Sanity properties 
 fact { 
-  disj[ Glob, Thr ] 
-  Glob + Thr = Loc 
+  // disj[ Glob, Thr ] 
+  // Glob + Thr = Loc 
   Atomic + NonAtomic = Glob 
   // Intern + Extern + Call + Ret = Action 
 } 
 
-// Actions 
 pred locWF[ dom : set Action, kind : Action -> Kind, 
             gloc : Action -> Glob, lloc : Action -> Thr ] { 
     kind in dom -> one Kind 
@@ -96,13 +99,10 @@ pred HBacyc [ dom : set Action, kind : Action -> Kind,
   no iden & ^hb 
 } 
 
-// TODO: not sure if this is needed
-
-// pred goodCallmap [ intloc : set Thr, callmap : Thr -> Val ] { 
-//   relation/dom[callmap] = intloc  
-// } 
 
 // Write the value given at the call to the same local variable.
+
+// TODO: this is kind of ugly refactor it into multiple predicates?
 pred RFwfLocal [ dom : set Action, kind : Action -> Kind, 
                 gloc : Action -> Loc, lloc : Action -> Loc, 
                 callmap, retmap : Thr -> Val, 
@@ -132,7 +132,7 @@ pred RFwfLocal [ dom : set Action, kind : Action -> Kind,
     } implies w.wv = (w.lloc).callmap } 
   } 
 
-  // the return map takes the right local var value
+  // the return map takes the correct local var value
   all t : Thr, r : dom & (kind.Read + Ret) | { 
     r -> Ret in ^sb
     r.lloc = t 
@@ -145,9 +145,6 @@ pred RFwfLocal [ dom : set Action, kind : Action -> Kind,
     r in Call implies t.callmap = t.retmap  
               else r.rv = t.retmap  
   } 
-
-  // TODO : take value of callmap
-  
 } 
 
 pred RFwf [ dom : set Action, kind : Action -> Kind,
