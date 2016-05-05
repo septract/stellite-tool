@@ -6,7 +6,7 @@
     <ProjectGuid>{0AEC5B6A-1937-4834-AD2A-68122EB98239}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>stellitetool</RootNamespace>
-    <AssemblyName>stellite-tool</AssemblyName>
+    <AssemblyName>stellite</AssemblyName>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
     <DebugSymbols>true</DebugSymbols>
