@@ -1,4 +1,4 @@
-/** RReq *//
+/** RRelim **/
 global x; 
 local l; 
 
@@ -6,4 +6,5 @@ local l;
 read(x,l); 
 
 /** Unoptimised **/ 
+read(x,l); 
 read(x,l); 

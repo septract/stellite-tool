@@ -1,9 +1,12 @@
-/** RReq *//
+/** RRswap **/
+
 global x; 
 local l; 
 
 /** Optimised **/ 
+
 read(x,l); 
 
 /** Unoptimised **/ 
-read(x,l); 
+
+write(x,l); 
