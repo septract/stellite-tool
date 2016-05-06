@@ -188,6 +188,7 @@ let dispOptPredRelat ((name,decl,lhs,rhs) : string * List<Command> * List<Comman
     [ "// File generated from " + name + ".stl by Stellite" ] @
     [ "module " + name ] @
     [ "open ../c11Relat" ] @ 
+    [ "open ../histRelat" ] @ 
     [ "" ] @ 
     dispHarnessPredRelat name decl @
     dispSimpPredRelat (name+"LHS", (decl @ lhs)) @ 

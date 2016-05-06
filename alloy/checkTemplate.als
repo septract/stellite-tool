@@ -1,4 +1,8 @@
-// Predicate template in stellite-tool/alloy/checkTemplate.als
+
+/****************************************************/ 
+/* Inclusion checking code.                         */ 
+/* Template: stellite-tool/alloy/checkTemplate.als  */ 
+/****************************************************/ 
 
 pred histIncl() { 
   all dom, dom' : set Action, kind, kind' : Action -> Kind,
@@ -55,6 +59,6 @@ pred histIncl() {
   }
 } 
 
-check { histIncl } for 6
+check { histIncl } for 7 
 
 
