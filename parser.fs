@@ -107,15 +107,15 @@ let parseCmd fg = (choice[ (parseWrite fg)
  
 /// Parse an optimisation script                                                  
 let parseOptScript fg : Parser<_, unit> = 
-    tuple4 parseName 
-           (many (parseDecl fg) .>> sepr)
-           (many (parseCmd fg) .>> sepr)
+    tuple4 (parseName .>> ws) 
+           (many (parseDecl fg) .>> sepr .>> ws)
+           (many (parseCmd fg) .>> sepr .>> ws)
            (many (parseCmd fg) .>> eof) 
 
 /// Parse a simple script 
 let parseSimpScript fg : Parser<_, unit> = 
-    tuple3 parseName 
-           (many (parseDecl fg) .>> sepr)
+    tuple3 (parseName .>> ws) 
+           (many (parseDecl fg) .>> sepr .>> ws)
            (many (parseCmd fg) .>> eof)
     |>> (fun (a,b,c) -> (a, (b @ c)))  
 
