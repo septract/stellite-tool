@@ -25,12 +25,12 @@ let main argv =
                 let fg = freshGen () in  
                 match parseFile first (parseOptScript fg) with 
                     | Success(result,_,_) -> 
-                        printfn "Parse:\n %A" result 
+                        //printfn "Parse:\n %A" result 
                         let res = dispOptPredRelat result 
-                        printfn "Predicates:" 
+                        //printfn "Predicates:" 
                         for l in res do printfn "%s" l
                         0 
-                    | Failure(errorMsg,_,_) -> printfn "Failure %s" errorMsg; 1 
+                    | Failure(errorMsg,_,_) -> eprintfn "Failure %s" errorMsg; 1 
             | _ -> printfn "One argument expected"; 1
     with 
     | :? System.IO.FileNotFoundException -> printfn "Couldn't find the specified file!"; 1 

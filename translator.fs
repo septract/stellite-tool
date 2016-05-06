@@ -169,7 +169,8 @@ let dispSimpPredRelat ((name, cmds) : string * List<Command>) : List<string> =
       [ "}"] 
 
 let dispHarnessPredRelat name decl = 
-    [ "pred " + name ] @ 
+    [ "// Optimisation name: " + name ] @ 
+    [ "pred optPredDef" ] @
     [ "     [ dom, dom' : set Action," ] @
     [ "       kind, kind' : Action -> Kind,"] @
     [ "       gloc, gloc' : Action -> Glob," ] @ 
@@ -184,25 +185,12 @@ let dispHarnessPredRelat name decl =
 
 let dispOptPredRelat ((name,decl,lhs,rhs) : string * List<Command> * List<Command> * List<Command>) 
                 : List<string> = 
+    [ "// File generated from " + name + ".stl by Stellite" ] @
+    [ "module " + name ] @
+    [ "open ../c11Relat" ] @ 
+    [ "open ../histRelat" ] @ 
+    [ "" ] @ 
+    dispHarnessPredRelat name decl @
     dispSimpPredRelat (name+"LHS", (decl @ lhs)) @ 
-    dispSimpPredRelat (name+"RHS", (decl @ rhs)) @ 
-    dispHarnessPredRelat name decl 
-
-
-(* idea: 
- *  Define an axiom saying that written values have to be consistent with the 
- *  preceding read to the same location. This requires recording local variable
- *  names in the representation somewhere. However, this is much more static than 
- *  read values, and can be done on the LHS. 
- * 
- *  You could maybe also do this with the call / return actions, ie. project out 
- *  from the structure of the execution using a predicate. Something like: 
- * 
- *    forall l in loc, final-written value of l is the same in the rhs execution
- *                       /\ 
- *                     first-read value of l is the same in the rhs execution 
- * 
- *  ...Of course, you'd also need to handle the case where you don't r / w to the
- *  local variable. Need to think more about this. 
- *) 
+    dispSimpPredRelat (name+"RHS", (decl @ rhs)) 
 

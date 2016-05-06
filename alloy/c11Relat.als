@@ -133,7 +133,8 @@ pred RFwfLocal [ dom : set Action, kind : Action -> Kind,
   } 
 
   // the return map takes the correct local var value
-  all t : Thr, r : dom & (kind.Read + Ret) | { 
+  // either from Call or a read. 
+  all t : Thr, r : dom & (kind.Read + Call) | { 
     r -> Ret in ^sb
     r.lloc = t 
     no r' : dom & kind.Read | { 

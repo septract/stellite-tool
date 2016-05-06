@@ -1,9 +1,0 @@
-global x,y;
-// declarations 
-local a,b,c;
-val v1, v2; 
-
-// code 
-write(x,a);
-b = read(y); 
-c = RMW(x,a,b); 
