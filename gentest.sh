@@ -6,6 +6,5 @@ then
 	exit 1
 fi
 
-echo "Generating $2"
-./stellite.sh $1 > $2 || { echo "generation failed!" ; exit 1; } 
+./stellite.sh $1 > $2 || { echo "Predicate generation failed!">&2 ; exit 1; } 
 cat ./alloy/checkTemplate.als >> $2 
