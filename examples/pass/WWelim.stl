@@ -1,0 +1,10 @@
+/** RRelim **/
+global x; 
+local l,l2; 
+
+/** Optimised **/ 
+write(x,l); 
+
+/** Unoptimised **/ 
+write(x,l2); 
+write(x,l); 

@@ -1,0 +1,12 @@
+/** WRelim - should be VALID **/
+/* needs assumeEq in order to work */ 
+
+global x; 
+local l1, l2; 
+
+/** Optimised **/ 
+
+/** Unoptimised **/ 
+write(x,l1); 
+read(x,l2); 
+assumeEq(l1,l2); 
