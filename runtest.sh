@@ -15,7 +15,7 @@ fi
 outfile="./alloy/gen/$(basename $1 .stl).als"
 ./gentest.sh $1 $outfile || exit 1 
 
-java -cp ./alloy-mod.jar \
+java -Xmx2048m -cp ./alloy-mod.jar \
       edu.mit.csail.sdg.alloy4whole.ExampleUsingTheCompiler \
       $outfile  
 
