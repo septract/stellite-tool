@@ -210,7 +210,7 @@ pred cutW[ dom : set Action, kind : Action -> Kind,
 //      deny = getdeny[dom, kind, gloc, wv, rv, ^hb, sb, mo, rf] 
 //   } 
 // } for 8 but exactly 2 Extern 
-
+//
 // run hist_incl_run { 
 //   some dom : set Action, hb, sb, mo, rf : Action -> Action, 
 //       // guar, deny : Action -> Action, 
