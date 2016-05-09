@@ -170,27 +170,32 @@ let dispSimpPredRelat ((name, cmds) : string * List<Command>) : List<string> =
 
 let dispHarnessPredRelat name decl = 
     [ "// Optimisation name: " + name ] @ 
-    [ "pred optPredDef" ] @
+    [ "pred optPred" ] @
     [ "     [ dom, dom' : set Action," ] @
     [ "       kind, kind' : Action -> Kind,"] @
     [ "       gloc, gloc' : Action -> Glob," ] @ 
     [ "       lloc, lloc' : Action -> Thr," ] @
     [ "       sb, sb' : Action -> Action ] {" ] @ 
+    [ "  one Call & (dom + dom')" ] @ 
+    [ "  one Ret & (dom + dom')" ] @ 
+    [ "  preexecWF[dom, kind, gloc, lloc, sb]" ] @ 
+    [ "  preexecWF[dom', kind', gloc', lloc', sb']" ] @ 
     [ "  some " + dispGlobDecl decl + " : Glob, " + dispThrDecl decl + " : Thr | {" ] @ 
-    [ "    " + name + "LHS[dom - Extern, kind, gloc, lloc, sb, " + dispAllDecl decl + "]" ] @ 
-    [ "    " + name + "RHS[dom' - Extern, kind', gloc', lloc', sb', " + dispAllDecl decl + "]" ] @ 
+    [ "    optLHS[dom - Extern, kind, gloc, lloc, sb, " + dispAllDecl decl + "]" ] @ 
+    [ "    optRHS[dom' - Extern, kind', gloc', lloc', sb', " + dispAllDecl decl + "]" ] @ 
     [ "  }" ] @ 
     [ "}" ] 
 
 
 let dispOptPredRelat ((name,decl,lhs,rhs) : string * List<Command> * List<Command> * List<Command>) 
                 : List<string> = 
-    [ "// File generated from " + name + ".stl by Stellite" ] @
+    [ "// Automatically generated file: modifications will be overwritten!" ] @
+    [ "// File generated from " + name + ".stl by Stellite " ] @
     [ "module " + name ] @
     [ "open ../c11Relat" ] @ 
     [ "open ../histRelat" ] @ 
     [ "" ] @ 
     dispHarnessPredRelat name decl @
-    dispSimpPredRelat (name+"LHS", (decl @ lhs)) @ 
-    dispSimpPredRelat (name+"RHS", (decl @ rhs)) 
+    dispSimpPredRelat ("optLHS", (decl @ lhs)) @ 
+    dispSimpPredRelat ("optRHS", (decl @ rhs)) 
 
