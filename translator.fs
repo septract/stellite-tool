@@ -164,7 +164,7 @@ let dispSimpPredRelat ((name, cmds) : string * List<Command>) : List<string> =
       (List.map (fun c -> "    " + (actName c) + ".gloc = " + (getActionGloc c)) acts) @ 
       (List.map (fun c -> "    " + (actName c) + ".lloc = " + (getActionLloc c)) acts) @ 
       (List.map (fun c -> "    " + (actName c) + " in kind." + (actKind c)) acts) @ 
-      (List.map ((+) "    ") (genEqs cmds)) @ 
+      //(List.map ((+) "    ") (genEqs cmds)) @ 
       [ "  }"] @  
       [ "}"] 
 
