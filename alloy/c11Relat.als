@@ -8,8 +8,6 @@ fact {
   no NonAtomic 
 } 
 
-// TODO: refactor Call / Ret into Hist module?
-
 abstract sig Loc {} 
 sig Glob, Thr extends Loc {} 
 sig Atomic, NonAtomic in Glob {} 
@@ -18,10 +16,7 @@ sig Val {}
 one sig Init in Val {} // Magic initialisation value
 
 abstract sig Kind {} 
-one sig Read, Write, Spesh extends Kind {} 
-
-// Took out RMW for the moment. 
-// RMW
+one sig Read, Write, RMW, Spesh extends Kind {} 
 
 // Actions 
 abstract sig Action {} 
@@ -45,7 +40,7 @@ pred locWF[ dom : set Action, kind : Action -> Kind,
       a in (Call + Ret) iff kind[a] in Spesh
 
       // All reads and writes access global locations
-      kind[a] in Read + Write  iff  one a.gloc
+      kind[a] in Read + Write + RMW  iff  one a.gloc
 
       kind[a] in Write implies { 
         a in Intern iff one a.lloc 
@@ -64,21 +59,24 @@ pred valWF[ dom : set Action, kind : Action -> Kind,
     wv in (dom - (Call + Ret)) -> lone Val
     rv in (dom - (Call + Ret)) -> lone Val
 
+    // Writes have a written value, reads have a read value, RMW have both
     all a : dom | { 
-      // Writes have a written value, reads have a read value
       kind[a] in Write iff { 
         one a.wv
-        //one a.rv iff (a in Intern) 
+        no a.rv
       } 
-
       kind[a] in Read iff { 
         one a.rv
-        //one a.wv iff (a in Intern)  
+        no a.wv
+      } 
+      kind[a] in RMW iff { 
+        one a.rv
+        one a.wv
       } 
     } 
 } 
 
-run valWF for 7
+// run valWF for 7
 
 // No transitive edges in the relation 
 pred is_core [ r : Action -> Action ] { 
@@ -99,10 +97,9 @@ pred HBacyc [ dom : set Action, kind : Action -> Kind,
   no iden & ^hb 
 } 
 
-
 // Write the value given at the call to the same local variable.
-
-// TODO: this is kind of ugly refactor it into multiple predicates?
+// TODO: this is kind of ugly - refactor it into multiple predicates?
+// TODO: handle internal RMW properly 
 pred RFwfLocal [ dom : set Action, kind : Action -> Kind, 
                 gloc : Action -> Loc, lloc : Action -> Loc, 
                 callmap, retmap : Thr -> Val, 
@@ -152,24 +149,24 @@ pred RFwf [ dom : set Action, kind : Action -> Kind,
             loc : Action -> Loc, wv, rv : Action -> Val, 
             hb, sb, mo, rf : Action -> Action ] { 
   // Read from at most one write 
-  rf in kind.Write lone -> kind.Read 
+  rf in kind.(Write + RMW) lone -> kind.(Read + RMW) 
 
   // Irreflexive 
   no iden & rf 
 
-  all r : (dom & kind.Read) | { 
+  all r : dom & kind.(Read + RMW) | { 
     // Read from the same location written 
     (rf.r).loc in r.loc 
 
     // Value taken from origin write
-    // NOTE: can't be init value (does this matter?) 
+    // TODO: decide whether to allow assignments to Init
     some rf.r implies r.rv = (rf.r).wv // and not r.rval in Init
     no rf.r implies r.rv in Init 
 
     // Allow initialisation reads, but force actions to 
     // read from an explicit write if any is hb-available 
-    ( (some (hb + mo).r & (kind.Write <: loc).(r.loc) ) 
-          implies (some rf.r) ) 
+    (some (hb + mo).r & (kind.(Write + RMW) <: loc).(r.loc) ) 
+          implies (some rf.r) 
   } 
 } 
 
@@ -185,7 +182,7 @@ pred HBdef [ dom : set Action, kind : Action -> Kind,
 pred CoWR [ dom : set Action, kind : Action -> Kind,
             loc : Action -> Loc, wv, rv : Action -> Val, 
             hb, sb, mo, rf : Action -> Action ] {
-  all r : dom & kind.Read, w1 : rf.r | 
+  all r : dom & kind.(Read + RMW), w1 : rf.r | 
     not { (w1 -> r) in mo.(hb + mo) } 
 } 
 
@@ -194,12 +191,12 @@ pred MOwf [ dom : set Action, kind : Action -> Kind,
             hb, sb, mo, rf : Action -> Action ] { 
   mo = ^mo     // transitive
   no iden & mo  // irreflexive 
-  mo in kind.Write -> kind.Write
+  mo in kind.(Write + RMW) -> kind.(Write + RMW)
   
-   // per-location total on atomics
-   { all disj w1, w2 : kind.Write | 
+  // per-location total on atomics
+  all disj w1, w2 : kind.(Write + RMW) | 
      (w1 -> w2) in mo + ~mo iff 
-       (w1.loc = w2.loc) and w1 + w2 in (dom <: loc.Atomic) } 
+       (w1.loc = w2.loc) and w1 + w2 in (dom <: loc.Atomic)
  } 
  
 pred HBvsMO [ dom : set Action, kind : Action -> Kind,

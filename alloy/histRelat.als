@@ -5,11 +5,10 @@ open c11Relat
 
 pred preexecWF [ dom : set Action, kind : Action -> Kind,
                  gloc, lloc : Action -> Loc, sb : Action -> Action ] { 
+  // no kind.RMW
+
   SBwf[dom, kind, sb] 
   locWF[dom, kind, gloc, lloc] 
-
-//   // External actions act on global locations 
-//   (dom & Extern).loc in Glob 
 
   // External actions are unordered in sb  
   no sb & ((Extern -> Action) + (Action -> Extern)) 
@@ -31,10 +30,10 @@ fun HBvsMO_d [ dom : set Action, kind : Action -> Kind,
                hb, sb, mo, rf : Action -> Action ] 
                   : (Action -> Action) { 
   { u : (Extern + Ret), v : (Extern + Call) | 
-    some disj w1, w2 : (kind.Write & (dom <: loc.Atomic)) | 
+    some disj w1, w2 : (dom <: loc.Atomic) | 
     { 
       (w2 -> w1) in mo
-      (w1 -> u) + (v -> w2) in iden + hb
+      (w1 -> u) + (v -> w2) in (iden + hb) 
     } 
   } 
 } 
@@ -68,19 +67,6 @@ fun HBacyc_d [ dom : set Action, kind : Action -> Kind,
   } 
 } 
 
-// pred histWF [ dom : set Action, hb, sb, mo, rf : Action -> Action, 
-//               interf : set Action, guar, deny : Action -> Action ] { 
-//   no interf & Intern 
-// 
-//   // Guarantee is a projection of Call -> Ret and external hb
-//   guar = hb & 
-//       ((Extern -> Extern) + (Call -> Extern) +  (Extern -> Ret)) 
-//   
-//   // Deny is built from two kinds of shape 
-//   deny = CoWR_d[dom, hb, sb, mo, rf] + 
-//          HBvsMO_d[dom, hb, sb, mo, rf]
-// }
-
 fun getguar[ dom : Action, hb : Action -> Action ] : Action -> Action { 
   hb & ((Extern -> Extern) + (Call -> Extern) +  (Extern -> Ret)) 
 } 
@@ -105,7 +91,8 @@ fun getdeny[ dom : set Action, kind : Action -> Kind,
 pred cutR[ dom : set Action, kind : Action -> Kind,
            loc : Action -> Loc, wv, rv : Action -> Val, 
            hb, sb, mo, rf : Action -> Action ] { 
-  all r : Extern & kind.Read | some w : Intern & kind.Write | { 
+  all r : Extern & kind.Read & loc.Atomic & dom | 
+  some w : Intern & dom | { 
     (w -> r) in rf
     no (w.rf & Extern) - r
   } 
