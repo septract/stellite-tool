@@ -2,7 +2,7 @@
 
 for file in $(find ./examples/{pass,fail} -iname '*.stl' | sort);
 do
-  printf ">> $file... "
+  printf "Stellite> $file... "
   name=`basename $file .stl`
   TMPFILE=`mktemp /tmp/${name}.XXXXXX` || \
       { echo "Couldn't create temporary file!">&2; exit 1; } 
