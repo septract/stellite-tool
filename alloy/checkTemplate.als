@@ -18,10 +18,6 @@ pred histIncl() {
       // Enforce validity for LHS
       valid[dom, kind, gloc, lloc, callmap, retmap, wv, rv, ^hb, ^sb, mo, rf] 
 
-      // WF for pre-executions 
-      // preexecWF[dom, kind, gloc, lloc, ^sb]
-      // preexecWF[dom', kind', gloc', lloc', ^sb']
-
       // Interfaces are the same
       Extern & dom = Extern & dom' 
       Extern <: gloc = Extern <: gloc' 
@@ -51,18 +47,21 @@ pred histIncl() {
    let hb' = ^(sb' + rf'), 
        wv' = wvi + (Extern <: wv), 
        rv' = rvi + (Extern <: rv) | { 
+
+      // Enforce validity for RHS 
       valid[dom', kind', gloc', lloc', callmap, retmap, wv', rv', ^hb', ^sb', mo', rf']
 
       // Atomics disabled 
       //DRF[dom', kind', loc', wv', rv', ^hb', sb', mo', rf']
  
+      // Histories are related
       getguar[dom', ^hb'] in guar 
       getdeny[dom', kind', gloc', wv', rv', ^hb', ^sb', mo', rf'] in deny 
     } 
   }
 } 
 
-check { histIncl } for 7
+// check { histIncl } for 7
 
 
 /****************************************************/ 
