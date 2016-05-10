@@ -39,9 +39,6 @@
     <Reference Include="FParsecCS">
       <HintPath>packages\FParsec-Big-Data-Edition.1.0.2\lib\net40-client\FParsecCS.dll</HintPath>
     </Reference>
-    <Reference Include="CommandLine">
-      <HintPath>packages\CommandLineParser.1.9.71\lib\net40\CommandLine.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="parser.fs" />
