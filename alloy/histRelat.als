@@ -111,8 +111,7 @@ pred cutR[ dom : set Action, kind : Action -> Kind,
   } 
 } 
 
-fun visible [ dom : set Action, rf : Action -> Action ] 
-    : Action  { 
+fun vizAct[ dom : set Action, rf : Action -> Action ] : Action  { 
   // Internal actions 
   (dom & Intern) + 
   // External actions that are read or read from internal actions
@@ -124,9 +123,9 @@ pred cutW[ dom : set Action, kind : Action -> Kind,
             loc : Action -> Loc, wv, rv : Action -> Val, 
             hb, sb, mo, rf : Action -> Action ] { 
   all disj w, w' : Extern & dom | { 
-    {(w.loc = w'.loc) and (no (w + w') & visible[dom, hb, sb, mo, rf])} 
+    {(w.loc = w'.loc) and (no (w + w') & vizAct[dom, rf])} 
        implies 
-    some w'' : visible[dom, rf] | 
+    some w'' : vizAct[dom, rf] | 
        (w -> w'') + (w'' -> w') in mo
   } 
 } 
