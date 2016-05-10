@@ -5,8 +5,10 @@
 /****************************************************/ 
 
 pred histIncl() { 
-  all dom, dom' : set Action, kind, kind' : Action -> Kind,
-      gloc, gloc', lloc, lloc' : Action -> Loc, 
+  all dom, dom' : set Action, 
+      kind, kind' : Action -> Kind,
+      gloc, gloc' : Action -> Glob,
+      lloc, lloc' : Action -> Thr, 
       callmap, retmap : Thr -> Val, 
       wv, rv : Action -> Val, 
       sb, sb' : Action -> Action,
