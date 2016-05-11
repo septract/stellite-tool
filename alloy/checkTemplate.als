@@ -15,7 +15,7 @@ pred histIncl() {
       sb, sb' : Action -> Action,
       hb, mo, rf, guar, deny : Action -> Action
     when { 
-      no lloc2 + lloc2' 
+      // no lloc2 + lloc2' 
 
       // Optimisation definition 
       optPred[dom, dom', kind, kind', gloc, gloc', lloc1, lloc1', lloc2, lloc2', ^sb, ^sb'] 

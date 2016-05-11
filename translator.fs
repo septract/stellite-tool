@@ -47,25 +47,35 @@ let dispAllDecl cmds =
 let isAct = function | Write _ | Read _ | RMW _ -> true
                      | _ -> false 
 
+/// Check whether a command is an assumeEq
+let isAssm = function | AssumeEq _ -> true
+                      | _ -> false 
+
 /// Get the identifier for an action 
 let getActionId a = 
     match a with 
-    | Write (i,_) | Read (i,_) | RMW (i,_) -> i
-    | _ -> failwith "getActionId: not an action!" 
+    | Write (i,_) | Read (i,_) | RMW (i,_) | AssumeEq (i,_) -> i
+    | _ -> failwith "getActionId: not a valid parameter!" 
 
 /// Get the variable for an action 
 let getActionGloc a = 
     match a with 
     | Write (_,(x,_)) | Read (_,(x,_)) -> x
     //| RMW (_,(x,_,_)) -> x
-    | _ -> failwith "getActionGloc: not an action!" 
+    | _ -> failwith "getActionGloc: not a valid parameter!" 
 
 /// Get the local variable for an action 
 let getActionlloc1 a = 
     match a with 
-    | Write (_,(_,x)) | Read (_,(_,x)) -> x
+    | Write (_,(_,x)) | Read (_,(_,x)) | AssumeEq (_,(x,_)) -> x
     //| RMW (_,(x,_,_)) -> x
-    | _ -> failwith "getActionlloc1: not an action!" 
+    | _ -> failwith "getActionlloc1: not a valid parameter!" 
+
+/// Get the local variable for an action 
+let getActionlloc2 a = 
+    match a with 
+    | AssumeEq (_,(_,x)) -> x
+    | _ -> failwith "getActionlloc2: not a valid parameter!" 
 
 /// Generate the name for the action. 
 let actName c = "op" + string (getActionId c)
@@ -75,7 +85,8 @@ let actKind c =
     match c with 
     | Write _ -> "Write"
     | Read _ -> "Read" 
-    | RMW _ -> "RMW" 
+    //| RMW _ -> "RMW" 
+    | AssumeEq _ -> "AssmEq" 
     | _ -> failwith "actKind: not an action!"
 
 /// Generate equality assertions for read-write and read-value pairs. 
@@ -154,18 +165,23 @@ let dispOptPredHO ((name,decl,lhs,rhs) : string * List<Command> * List<Command> 
 
 let dispSimpPredRelat ((name, cmds) : string * List<Command>) : List<string> =
     let acts = (List.filter isAct) cmds in
+    let assms = (List.filter isAssm) cmds in 
       [ "pred " + name ] @
       [ "         [ dom : set Action, kind : Action -> Kind," ] @
       [ "           gloc : Action -> Glob, lloc1, lloc2 : Action -> Thr, " ] @
       [ "           sb : Action -> Action, " + (dispGlobDecl cmds |> intersperse ", ") + " : Glob, " 
                + (dispThrDecl cmds |> intersperse ", ") + " : Thr ] { "] @
       [ "  sb in (dom -> dom)" ] @ 
-      [ "  some disj " + (List.map actName acts |> intersperse ", ") + " : Action | { "] @ 
-      [ "    dom = " + (List.map actName acts |> intersperse " + ") + " + Call + Ret" ] @ 
+      (if (List.length acts > 0) then 
+        [ "  some disj " + (List.map actName (acts @ assms) |> intersperse ", " ) + " : Action | "]
+      else []) @ 
+      [ "  { "] @ 
+      [ "    dom = " + (List.fold (fun c a -> (actName a) + " + " + c) "" (acts @ assms) ) + "Call + Ret" ] @ 
       [ "    (Call -> Ret)" + (List.map actName acts |> seqDefn) + " in sb" ] @ 
       (List.map (fun c -> "    " + (actName c) + ".gloc = " + (getActionGloc c)) acts) @ 
-      (List.map (fun c -> "    " + (actName c) + ".lloc1 = " + (getActionlloc1 c)) acts) @ 
-      (List.map (fun c -> "    " + (actName c) + " in kind." + (actKind c)) acts) @ 
+      (List.map (fun c -> "    " + (actName c) + ".lloc1 = " + (getActionlloc1 c)) (acts @ assms)) @ 
+      (List.map (fun c -> "    " + (actName c) + ".lloc2 = " + (getActionlloc2 c)) assms) @ 
+      (List.map (fun c -> "    " + (actName c) + " in kind." + (actKind c)) (acts @ assms)) @ 
       //(List.map ((+) "    ") (genEqs cmds)) @ 
       [ "  }"] @  
       [ "}"] 
@@ -181,7 +197,6 @@ let dispHarnessPredRelat name decl =
     [ "       sb, sb' : Action -> Action ] {" ] @ 
     [ "  one Call & (dom + dom')" ] @ 
     [ "  one Ret & (dom + dom')" ] @ 
-    [ "  // Pre-execution WF" ] @ 
     [ "  preexecWF[dom, kind, gloc, lloc1, lloc2, sb]" ] @ 
     [ "  preexecWF[dom', kind', gloc', lloc1', lloc2', sb']" ] @ 
     [ "  some disj " + (dispGlobDecl decl |> intersperse ", ") + " : Glob, " + 

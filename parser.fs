@@ -31,7 +31,7 @@ type Command =
     | RMW of int * (Ident * Ident * Ident * Ident)
 //    | Choice of Command * Command 
 //    | Cond of BExp * List<Command>
-    | AssumeEq of Ident * Ident
+    | AssumeEq of int * (Ident * Ident)
 
 /// Parse comment 
 let com = skipString "//" .>> skipRestOfLine true
@@ -86,11 +86,11 @@ let parseRMW fg =
     |>> fun (a,b,c,d) -> RMW (getFresh fg, (a, b, c, d)) 
 
 /// Parse an assume operation 
-let parseAssume =
-    between (skipString "assume(" >>. ws)
+let parseAssume fg =
+    between (skipString "assumeEq(" >>. ws)
             parseEndBrac 
-            (tuple2 parseIdent (ws >>. skipString "==" >>. ws >>. parseIdent) ) 
-    |>> fun (a,b) -> AssumeEq (a,b)
+            (tuple2 parseIdent (ws >>. skipString "," >>. ws >>. parseIdent) ) 
+    |>> fun (a,b) -> AssumeEq (getFresh fg, (a,b))
 
 /// Parse the file name 
 let parseName = skipString "/**" >>. ws >>. parseIdent .>> skipRestOfLine true 
@@ -103,7 +103,7 @@ let parseDecl fg =    (choice[ parseThrDecl
 let parseCmd fg = (choice[ (parseWrite fg)
                            (parseRead fg) 
                            //(parseRMW fg) 
-                           parseAssume ]) .>> (ws .>> pstring ";" .>> ws) 
+                           parseAssume fg ]) .>> (ws .>> pstring ";" .>> ws) 
  
 /// Parse an optimisation script                                                  
 let parseOptScript fg : Parser<_, unit> = 

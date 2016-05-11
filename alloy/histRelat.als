@@ -11,6 +11,12 @@ pred preexecWF [ dom : set Action,
   SBwf[dom, kind, sb] 
   locWF[dom, kind, gloc, lloc1, lloc2] 
 
+  lloc1 in Intern -> Thr 
+  lloc2 in Intern -> Thr
+
+  // Assumptions don't turn up in the environment 
+  no kind.AssmEq & Extern 
+
   // External actions are unordered in sb  
   no sb & ((Extern -> Action) + (Action -> Extern)) 
 
