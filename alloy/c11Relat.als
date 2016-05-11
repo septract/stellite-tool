@@ -16,7 +16,7 @@ sig Val {}
 one sig Init in Val {} // Magic initialisation value
 
 abstract sig Kind {} 
-one sig Read, Write, RMW, Spesh extends Kind {} 
+one sig Read, Write, RMW, AssmEq, Spesh extends Kind {} 
 
 // Actions 
 abstract sig Action {} 
@@ -24,43 +24,44 @@ sig Intern, Extern, Call, Ret extends Action {}
 
 // Sanity properties 
 fact { 
-  // disj[ Glob, Thr ] 
-  // Glob + Thr = Loc 
   Atomic + NonAtomic = Glob 
-  // Intern + Extern + Call + Ret = Action 
+  disj [ Atomic, NonAtomic ] 
 } 
 
-pred locWF[ dom : set Action, kind : Action -> Kind, 
-            gloc : Action -> Glob, lloc : Action -> Thr ] { 
+pred locWF[ dom : set Action, 
+            kind : Action -> Kind, 
+            gloc : Action -> Glob, 
+            lloc1, lloc2 : Intern -> Thr ] { 
     kind in dom -> one Kind 
     gloc in (dom - (Call + Ret)) -> lone Glob
-    lloc in (dom - (Call + Ret)) -> lone Thr
+    lloc1 in dom -> lone Thr
+    lloc2 in dom -> lone Thr
 
     all a : dom | { 
       a in (Call + Ret) iff kind[a] in Spesh
 
       // All reads and writes access global locations
-      kind[a] in Read + Write + RMW  iff  one a.gloc
+      a in kind.(Read + Write + RMW)  iff  one a.gloc
 
-      kind[a] in Write implies { 
-        a in Intern iff one a.lloc 
+      a in kind.(Read + Write) & Intern  implies  { 
+        one a.lloc1 and no a.lloc2
       } 
 
-      kind[a] in Read implies { 
-        a in Intern iff one a.lloc 
+      a in kind.(AssmEq + RMW) & Intern  implies  { 
+        one a.lloc1 and one a.lloc2
       } 
     } 
 } 
 
 // Values associated with actions correctly 
-pred valWF[ dom : set Action, kind : Action -> Kind, 
-            gloc : Action -> Glob, lloc : Action -> Thr, 
+pred valWF[ dom : set Action,
+            kind : Action -> Kind, 
             wv, rv : Action -> Val ] { 
     wv in (dom - (Call + Ret)) -> lone Val
     rv in (dom - (Call + Ret)) -> lone Val
 
     // Writes have a written value, reads have a read value, RMW have both
-    all a : dom | { 
+    all a : dom - (Call + Ret) | { 
       kind[a] in Write iff { 
         one a.wv
         no a.rv
@@ -73,10 +74,9 @@ pred valWF[ dom : set Action, kind : Action -> Kind,
         one a.rv
         one a.wv
       } 
+      // TODO: add case for no r/w?  
     } 
 } 
-
-// run valWF for 7
 
 // No transitive edges in the relation 
 pred is_core [ r : Action -> Action ] { 
@@ -97,56 +97,106 @@ pred HBacyc [ dom : set Action, kind : Action -> Kind,
   no iden & ^hb 
 } 
 
+// Find the last value written for a given local variable and action
+fun lastval [ dom : set Action, 
+              kind : Action -> Kind, 
+              lloc : Action -> Loc, 
+              callmap : Thr -> Val, 
+              rv : Action -> Val, 
+              sb : Action -> Action, 
+              curr : Action, 
+              currloc : Loc ] : set Val { 
+  { v : Val | 
+    some r : dom & kind.Read | { 
+      r.rv = v 
+      r -> curr in ^sb 
+      r.lloc = currloc 
+      no r' : dom & kind.Read | { 
+        (r -> r') + (r' -> curr) in ^sb 
+        r'.lloc = currloc  
+      } 
+    } 
+  } 
+    + 
+  { v : Val | {
+      v = (currloc).callmap 
+      (Call -> curr) in ^sb 
+      no r' : dom & kind.Read | { 
+        (Call -> r') + (r' -> curr) in ^sb 
+        r'.lloc = currloc  
+      }  
+    } 
+  } 
+} 
+
 // Write the value given at the call to the same local variable.
 // TODO: this is kind of ugly - refactor it into multiple predicates?
-// TODO: handle internal RMW properly 
-pred RFwfLocal [ dom : set Action, kind : Action -> Kind, 
-                gloc : Action -> Loc, lloc : Action -> Loc, 
+// TODO: handle internal RMW  
+pred RFwfLocal [ dom : set Action, 
+                kind : Action -> Kind, 
+                gloc : Action -> Loc, 
+                lloc1, lloc2 : Action -> Loc, 
                 callmap, retmap : Thr -> Val, 
                 wv, rv : Action -> Val, 
                 hb, sb, mo, rf : Action -> Action ] { 
   callmap in Thr -> one Val 
   retmap in Thr -> one Val 
 
+  all a : dom & kind.AssmEq | { 
+    lastval[dom, kind, lloc1, callmap, rv, sb, a, a.lloc1] = 
+      lastval[dom, kind, lloc1, callmap, rv, sb, a, a.lloc2] 
+  } 
+
   // Writes take the correct local var value 
   all w : dom & kind.Write | {
-    // Take the value of the sb-latest read on this thr-local var 
-    {all r : dom & kind.Read | { 
-      r -> w in ^sb 
-      r.lloc = w.lloc 
-      no r' : dom & kind.Read | { 
-        (r -> r') + (r' -> w) in ^sb 
-        r'.lloc = w.lloc 
-      }  
-    } implies r.rv = w.wv} 
-  and 
-    // If none exists, take the value in the callmap
-    {{ Call -> w in ^sb 
-      no r' : dom & kind.Read | { 
-        (Call -> r') + (r' -> w) in ^sb 
-        r'.lloc = w.lloc 
-      }  
-    } implies w.wv = (w.lloc).callmap } 
+    w.wv = lastval[dom, kind, lloc1, callmap, rv, sb, w, w.lloc1] 
+  } 
+
+  // // Writes take the correct local var value 
+  // all w : dom & kind.Write | {
+  //   // Take the value of the sb-latest read on this thr-local var 
+  //   {all r : dom & kind.Read | { 
+  //     r -> w in ^sb 
+  //     r.lloc1 = w.lloc1
+  //     no r' : dom & kind.Read | { 
+  //       (r -> r') + (r' -> w) in ^sb 
+  //       r'.lloc1 = w.lloc1
+  //     }  
+  //   } implies r.rv = w.wv} 
+  //   and 
+  //   // If none exists, take the value in the callmap
+  //   {{ Call -> w in ^sb 
+  //     no r' : dom & kind.Read | { 
+  //       (Call -> r') + (r' -> w) in ^sb 
+  //       r'.lloc1 = w.lloc1
+  //     }  
+  //   } implies w.wv = (w.lloc1).callmap } 
+  // } 
+
+  all t : Thr | { 
+    t.retmap = lastval[dom, kind, lloc1, callmap, rv, sb, Ret, t] 
   } 
 
   // the return map takes the correct local var value
   // either from Call or a read. 
-  all t : Thr, r : dom & (kind.Read + Call) | { 
-    r -> Ret in ^sb
-    r.lloc = t 
-    no r' : dom & kind.Read | { 
-      (r -> r') + (r' -> Call) in ^sb 
-      r'.lloc = t 
-    }
-    not (r -> Call) + (Call -> Ret) in ^sb 
-  } implies { 
-    r in Call implies t.callmap = t.retmap  
-              else r.rv = t.retmap  
-  } 
+  // all t : Thr, r : dom & (kind.Read + Call) | { 
+  //   r -> Ret in ^sb
+  //   r.lloc1 = t 
+  //   no r' : dom & kind.Read | { 
+  //     (r -> r') + (r' -> Call) in ^sb 
+  //     r'.lloc1 = t 
+  //   }
+  //   not (r -> Call) + (Call -> Ret) in ^sb 
+  // } implies { 
+  //   r in Call implies t.callmap = t.retmap  
+  //             else r.rv = t.retmap  
+  // } 
 } 
 
-pred RFwf [ dom : set Action, kind : Action -> Kind,
-            loc : Action -> Loc, wv, rv : Action -> Val, 
+pred RFwf [ dom : set Action, 
+            kind : Action -> Kind,
+            loc : Action -> Loc, 
+            wv, rv : Action -> Val, 
             hb, sb, mo, rf : Action -> Action ] { 
   // Read from at most one write 
   rf in kind.(Write + RMW) lone -> kind.(Read + RMW) 
@@ -170,8 +220,10 @@ pred RFwf [ dom : set Action, kind : Action -> Kind,
   } 
 } 
 
-pred HBdef [ dom : set Action, kind : Action -> Kind,
-             loc : Action -> Loc, wv, rv : Action -> Val, 
+pred HBdef [ dom : set Action, 
+             kind : Action -> Kind,
+             loc : Action -> Loc, 
+             wv, rv : Action -> Val, 
              hb, sb, mo, rf : Action -> Action ] {
   let aact = (dom <: loc).Atomic | 
   let sw = rf & (aact -> aact) | 
@@ -230,8 +282,10 @@ pred DRF [ dom : set Action, kind : Action -> Kind,
 } 
 
 
-pred valid [ dom : set Action, kind : Action -> Kind,
-             gloc, lloc: Action -> Loc, 
+pred valid [ dom : set Action, 
+             kind : Action -> Kind,
+             gloc : Action -> Glob, 
+             lloc1, lloc2: Action -> Thr, 
              callmap, retmap : Thr -> Val, 
              wv, rv : Action -> Val, 
              hb, sb, mo, rf : Action -> Action ] {
@@ -239,12 +293,12 @@ pred valid [ dom : set Action, kind : Action -> Kind,
   hb + sb + mo + rf in (dom -> dom) 
 
   // Pre-execution structure 
-  locWF[dom, kind, gloc, lloc] 
-  valWF[dom, kind, gloc, lloc, wv, rv]
+  locWF[dom, kind, gloc, lloc1, lloc2]  
+  valWF[dom, kind, wv, rv]
   SBwf[dom, kind, sb]
 
   // Local variable handling 
-  RFwfLocal[dom, kind, gloc, lloc, callmap, retmap, wv, rv, hb, sb, mo, rf] 
+  RFwfLocal[dom, kind, gloc, lloc1, lloc2, callmap, retmap, wv, rv, hb, sb, mo, rf] 
 
   // Axioms 
   HBacyc[dom, kind, gloc, wv, rv, hb, sb, mo, rf] 
@@ -265,39 +319,39 @@ pred sequential [ dom : set Action, sb : Action -> Action ] {
 /* Tests                                         */ 
 /*************************************************/ 
 
-run valid_run
-  { some dom : set Action, kind : Action -> Kind,
-               gloc, lloc : Action -> Loc, 
-               callmap, retmap : Thr -> Val, 
-               wv, rv : Action -> Val, 
-               hb, sb, mo, rf : Action -> Action | {
-     valid[dom, kind, gloc, lloc, callmap, retmap, wv, rv, ^hb, sb, mo, rf]
-     dom = Action 
-     Loc = dom.(gloc + lloc)
-     is_core[hb] 
-     is_core[sb] 
-     no Call + Ret
-  } 
-} for 6 but exactly 2 Thr, 0 Extern
-
- 
-run seq_run
-  { some dom : set Action, kind : Action -> Kind,
-               gloc, lloc : Action -> Loc, 
-               callmap, retmap : Thr -> Val, 
-               wv, rv : Action -> Val, 
-               hb, sb, mo, rf : Action -> Action | {
-     valid[dom, kind, gloc, lloc, callmap, retmap, wv, rv, ^hb, sb, mo, rf]
-     dom = Action 
-     Loc = dom.(gloc + lloc) 
-     is_core[hb] 
-     is_core[sb] 
-     // check sequential 
-     sequential[dom, sb]  
-     no Call + Ret
-  } 
-} for 6
- 
+// run valid_run
+//   { some dom : set Action, kind : Action -> Kind,
+//                gloc, lloc : Action -> Loc, 
+//                callmap, retmap : Thr -> Val, 
+//                wv, rv : Action -> Val, 
+//                hb, sb, mo, rf : Action -> Action | {
+//      valid[dom, kind, gloc, lloc, callmap, retmap, wv, rv, ^hb, sb, mo, rf]
+//      dom = Action 
+//      Loc = dom.(gloc + lloc)
+//      is_core[hb] 
+//      is_core[sb] 
+//      no Call + Ret
+//   } 
+// } for 6 but exactly 2 Thr, 0 Extern
+// 
+//  
+// run seq_run
+//   { some dom : set Action, kind : Action -> Kind,
+//                gloc, lloc : Action -> Loc, 
+//                callmap, retmap : Thr -> Val, 
+//                wv, rv : Action -> Val, 
+//                hb, sb, mo, rf : Action -> Action | {
+//      valid[dom, kind, gloc, lloc, callmap, retmap, wv, rv, ^hb, sb, mo, rf]
+//      dom = Action 
+//      Loc = dom.(gloc + lloc) 
+//      is_core[hb] 
+//      is_core[sb] 
+//      // check sequential 
+//      sequential[dom, sb]  
+//      no Call + Ret
+//   } 
+// } for 6
+//  
 
 // // Executions with no non-atomics are automatically DRF 
 // check atomic_DRF 

@@ -15,24 +15,26 @@ let rec intersperse i xs =
 let dispGlobDecl cmds = 
     List.map (function | GlobDecl vs -> vs 
                            | _ -> []) cmds 
-    |> List.concat |> intersperse ", "
+    |> List.concat 
 
 /// Display the declared local variable names
-let dispThrDecl cmds : string = 
+let dispThrDecl cmds = 
     List.map (function | ThrDecl vs -> vs 
                            | _ -> []) cmds 
-    |> List.concat |> intersperse ", "
+    |> List.concat 
 
 /// Display the declared values
 let dispValDecl cmds = 
     List.map (function | ValDecl vs -> vs  
                        | _ -> []) cmds
-    |> List.concat |> intersperse ", "
+    |> List.concat 
 
 /// Display the variable names, then the value names
 // TODO: should be possible to refactor these three into something more general
 let dispAllDecl cmds =   
-     dispGlobDecl cmds + ", " + dispThrDecl cmds // + ", " + dispValDecl cmds
+     (dispGlobDecl cmds |> intersperse ", ") + 
+     ", " + 
+     (dispThrDecl cmds |> intersperse ", ") // + ", " + dispValDecl cmds
 
     //(List.map (function | GlobDecl vs -> vs  
     //                    | _ -> []) cmds) 
@@ -45,25 +47,35 @@ let dispAllDecl cmds =
 let isAct = function | Write _ | Read _ | RMW _ -> true
                      | _ -> false 
 
+/// Check whether a command is an assumeEq
+let isAssm = function | AssumeEq _ -> true
+                      | _ -> false 
+
 /// Get the identifier for an action 
 let getActionId a = 
     match a with 
-    | Write (i,_) | Read (i,_) | RMW (i,_) -> i
-    | _ -> failwith "getActionId: not an action!" 
+    | Write (i,_) | Read (i,_) | RMW (i,_) | AssumeEq (i,_) -> i
+    | _ -> failwith "getActionId: not a valid parameter!" 
 
 /// Get the variable for an action 
 let getActionGloc a = 
     match a with 
     | Write (_,(x,_)) | Read (_,(x,_)) -> x
     //| RMW (_,(x,_,_)) -> x
-    | _ -> failwith "getActionGloc: not an action!" 
+    | _ -> failwith "getActionGloc: not a valid parameter!" 
 
 /// Get the local variable for an action 
-let getActionLloc a = 
+let getActionlloc1 a = 
     match a with 
-    | Write (_,(_,x)) | Read (_,(_,x)) -> x
+    | Write (_,(_,x)) | Read (_,(_,x)) | AssumeEq (_,(x,_)) -> x
     //| RMW (_,(x,_,_)) -> x
-    | _ -> failwith "getActionLloc: not an action!" 
+    | _ -> failwith "getActionlloc1: not a valid parameter!" 
+
+/// Get the local variable for an action 
+let getActionlloc2 a = 
+    match a with 
+    | AssumeEq (_,(_,x)) -> x
+    | _ -> failwith "getActionlloc2: not a valid parameter!" 
 
 /// Generate the name for the action. 
 let actName c = "op" + string (getActionId c)
@@ -73,7 +85,8 @@ let actKind c =
     match c with 
     | Write _ -> "Write"
     | Read _ -> "Read" 
-    | RMW _ -> "RMW" 
+    //| RMW _ -> "RMW" 
+    | AssumeEq _ -> "AssmEq" 
     | _ -> failwith "actKind: not an action!"
 
 /// Generate equality assertions for read-write and read-value pairs. 
@@ -152,18 +165,23 @@ let dispOptPredHO ((name,decl,lhs,rhs) : string * List<Command> * List<Command> 
 
 let dispSimpPredRelat ((name, cmds) : string * List<Command>) : List<string> =
     let acts = (List.filter isAct) cmds in
+    let assms = (List.filter isAssm) cmds in 
       [ "pred " + name ] @
       [ "         [ dom : set Action, kind : Action -> Kind," ] @
-      [ "           gloc : Action -> Glob, lloc : Action -> Thr, " ] @
-      [ "           sb : Action -> Action, " + dispGlobDecl cmds + " : Glob, " 
-               + dispThrDecl cmds + " : Thr ] { "] @
+      [ "           gloc : Action -> Glob, lloc1, lloc2 : Action -> Thr, " ] @
+      [ "           sb : Action -> Action, " + (dispGlobDecl cmds |> intersperse ", ") + " : Glob, " 
+               + (dispThrDecl cmds |> intersperse ", ") + " : Thr ] { "] @
       [ "  sb in (dom -> dom)" ] @ 
-      [ "  some disj " + (List.map actName acts |> intersperse ", ") + " : Action | { "] @ 
-      [ "    dom = " + (List.map actName acts |> intersperse " + ") + " + Call + Ret" ] @ 
+      (if (List.length acts > 0) then 
+        [ "  some disj " + (List.map actName (acts @ assms) |> intersperse ", " ) + " : Action | "]
+      else []) @ 
+      [ "  { "] @ 
+      [ "    dom = " + (List.fold (fun c a -> (actName a) + " + " + c) "" (acts @ assms) ) + "Call + Ret" ] @ 
       [ "    (Call -> Ret)" + (List.map actName acts |> seqDefn) + " in sb" ] @ 
       (List.map (fun c -> "    " + (actName c) + ".gloc = " + (getActionGloc c)) acts) @ 
-      (List.map (fun c -> "    " + (actName c) + ".lloc = " + (getActionLloc c)) acts) @ 
-      (List.map (fun c -> "    " + (actName c) + " in kind." + (actKind c)) acts) @ 
+      (List.map (fun c -> "    " + (actName c) + ".lloc1 = " + (getActionlloc1 c)) (acts @ assms)) @ 
+      (List.map (fun c -> "    " + (actName c) + ".lloc2 = " + (getActionlloc2 c)) assms) @ 
+      (List.map (fun c -> "    " + (actName c) + " in kind." + (actKind c)) (acts @ assms)) @ 
       //(List.map ((+) "    ") (genEqs cmds)) @ 
       [ "  }"] @  
       [ "}"] 
@@ -174,16 +192,17 @@ let dispHarnessPredRelat name decl =
     [ "     [ dom, dom' : set Action," ] @
     [ "       kind, kind' : Action -> Kind,"] @
     [ "       gloc, gloc' : Action -> Glob," ] @ 
-    [ "       lloc, lloc' : Action -> Thr," ] @
+    [ "       lloc1, lloc1' : Action -> Thr," ] @
+    [ "       lloc2, lloc2' : Action -> Thr," ] @
     [ "       sb, sb' : Action -> Action ] {" ] @ 
     [ "  one Call & (dom + dom')" ] @ 
     [ "  one Ret & (dom + dom')" ] @ 
-    [ "  // Pre-execution WF" ] @ 
-    [ "  preexecWF[dom, kind, gloc, lloc, sb]" ] @ 
-    [ "  preexecWF[dom', kind', gloc', lloc', sb']" ] @ 
-    [ "  some " + dispGlobDecl decl + " : Glob, " + dispThrDecl decl + " : Thr | {" ] @ 
-    [ "    optLHS[dom - Extern, kind, gloc, lloc, sb, " + dispAllDecl decl + "]" ] @ 
-    [ "    optRHS[dom' - Extern, kind', gloc', lloc', sb', " + dispAllDecl decl + "]" ] @ 
+    [ "  preexecWF[dom, kind, gloc, lloc1, lloc2, sb]" ] @ 
+    [ "  preexecWF[dom', kind', gloc', lloc1', lloc2', sb']" ] @ 
+    [ "  some disj " + (dispGlobDecl decl |> intersperse ", ") + " : Glob, " + 
+             "disj " + (dispThrDecl decl |> intersperse ", ") + " : Thr | {" ] @ 
+    [ "    optLHS[dom - Extern, kind, gloc, lloc1, lloc2, sb, " + dispAllDecl decl + "]" ] @ 
+    [ "    optRHS[dom' - Extern, kind', gloc', lloc1', lloc2', sb', " + dispAllDecl decl + "]" ] @ 
     [ "  }" ] @ 
     [ "}" ] 
 
@@ -202,6 +221,9 @@ let dispOptPredRelat (depth :int) (filen : string) ((name,decl,lhs,rhs) : string
     [ "" ] @ 
     dispSimpPredRelat ("optRHS", (decl @ rhs)) @ 
     [ "" ] @ 
-    [ "check { histIncl } for " + string depth + " but"] @ 
-    [ (List.filter (function | GlobDecl _ -> true | _ -> false) decl |> List.length |> string) + " Glob" ] 
-    
+    [ "check { histIncl } for " + string depth ] @
+    [ " but"] @
+    // Constrain the domain of global / local variables to exactly those in the opt definition
+    [ "  exactly 1 Call, exactly 1 Ret," ] @ 
+    [ "  exactly " + (dispGlobDecl decl |> List.length |> string) + " Glob," ] @
+    [ "  exactly " + (dispThrDecl decl |> List.length |> string) + " Thr" ] 

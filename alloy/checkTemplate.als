@@ -8,17 +8,20 @@ pred histIncl() {
   all dom, dom' : set Action, 
       kind, kind' : Action -> Kind,
       gloc, gloc' : Action -> Glob,
-      lloc, lloc' : Action -> Thr, 
+      lloc1, lloc1' : Intern -> Thr, 
+      lloc2, lloc2' : Intern -> Thr, 
       callmap, retmap : Thr -> Val, 
       wv, rv : Action -> Val, 
       sb, sb' : Action -> Action,
       hb, mo, rf, guar, deny : Action -> Action
     when { 
+      // no lloc2 + lloc2' 
+
       // Optimisation definition 
-      optPred[dom, dom', kind, kind', gloc, gloc', lloc, lloc', ^sb, ^sb'] 
+      optPred[dom, dom', kind, kind', gloc, gloc', lloc1, lloc1', lloc2, lloc2', ^sb, ^sb'] 
 
       // Enforce validity for LHS
-      valid[dom, kind, gloc, lloc, callmap, retmap, wv, rv, ^hb, ^sb, mo, rf] 
+      valid[dom, kind, gloc, lloc1, lloc2, callmap, retmap, wv, rv, ^hb, ^sb, mo, rf] 
 
       // Interfaces are the same
       Extern & dom = Extern & dom' 
@@ -37,7 +40,7 @@ pred histIncl() {
 
       // Sanity conditions 
       Action = dom + dom' 
-      Loc = dom.(lloc + gloc) + dom'.(lloc' + gloc') 
+      Loc = dom.(lloc1 + gloc) + dom'.(lloc1' + gloc') 
 
       // Make the relations nicer to display 
       is_core[hb] 
@@ -51,7 +54,7 @@ pred histIncl() {
        rv' = rvi + (Extern <: rv) | { 
 
       // Enforce validity for RHS 
-      valid[dom', kind', gloc', lloc', callmap, retmap, wv', rv', ^hb', ^sb', mo', rf']
+      valid[dom', kind', gloc', lloc1', lloc2', callmap, retmap, wv', rv', ^hb', ^sb', mo', rf']
 
       // Atomics disabled 
       //DRF[dom', kind', loc', wv', rv', ^hb', sb', mo', rf']
