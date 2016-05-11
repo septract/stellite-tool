@@ -59,11 +59,11 @@ let getActionGloc a =
     | _ -> failwith "getActionGloc: not an action!" 
 
 /// Get the local variable for an action 
-let getActionLloc a = 
+let getActionlloc1 a = 
     match a with 
     | Write (_,(_,x)) | Read (_,(_,x)) -> x
     //| RMW (_,(x,_,_)) -> x
-    | _ -> failwith "getActionLloc: not an action!" 
+    | _ -> failwith "getActionlloc1: not an action!" 
 
 /// Generate the name for the action. 
 let actName c = "op" + string (getActionId c)
@@ -154,7 +154,7 @@ let dispSimpPredRelat ((name, cmds) : string * List<Command>) : List<string> =
     let acts = (List.filter isAct) cmds in
       [ "pred " + name ] @
       [ "         [ dom : set Action, kind : Action -> Kind," ] @
-      [ "           gloc : Action -> Glob, lloc : Action -> Thr, " ] @
+      [ "           gloc : Action -> Glob, lloc1, lloc2 : Action -> Thr, " ] @
       [ "           sb : Action -> Action, " + dispGlobDecl cmds + " : Glob, " 
                + dispThrDecl cmds + " : Thr ] { "] @
       [ "  sb in (dom -> dom)" ] @ 
@@ -162,7 +162,7 @@ let dispSimpPredRelat ((name, cmds) : string * List<Command>) : List<string> =
       [ "    dom = " + (List.map actName acts |> intersperse " + ") + " + Call + Ret" ] @ 
       [ "    (Call -> Ret)" + (List.map actName acts |> seqDefn) + " in sb" ] @ 
       (List.map (fun c -> "    " + (actName c) + ".gloc = " + (getActionGloc c)) acts) @ 
-      (List.map (fun c -> "    " + (actName c) + ".lloc = " + (getActionLloc c)) acts) @ 
+      (List.map (fun c -> "    " + (actName c) + ".lloc1 = " + (getActionlloc1 c)) acts) @ 
       (List.map (fun c -> "    " + (actName c) + " in kind." + (actKind c)) acts) @ 
       //(List.map ((+) "    ") (genEqs cmds)) @ 
       [ "  }"] @  
@@ -174,16 +174,17 @@ let dispHarnessPredRelat name decl =
     [ "     [ dom, dom' : set Action," ] @
     [ "       kind, kind' : Action -> Kind,"] @
     [ "       gloc, gloc' : Action -> Glob," ] @ 
-    [ "       lloc, lloc' : Action -> Thr," ] @
+    [ "       lloc1, lloc1' : Action -> Thr," ] @
+    [ "       lloc2, lloc2' : Action -> Thr," ] @
     [ "       sb, sb' : Action -> Action ] {" ] @ 
     [ "  one Call & (dom + dom')" ] @ 
     [ "  one Ret & (dom + dom')" ] @ 
     [ "  // Pre-execution WF" ] @ 
-    [ "  preexecWF[dom, kind, gloc, lloc, sb]" ] @ 
-    [ "  preexecWF[dom', kind', gloc', lloc', sb']" ] @ 
+    [ "  preexecWF[dom, kind, gloc, lloc1, lloc2, sb]" ] @ 
+    [ "  preexecWF[dom', kind', gloc', lloc1', lloc2', sb']" ] @ 
     [ "  some " + dispGlobDecl decl + " : Glob, " + dispThrDecl decl + " : Thr | {" ] @ 
-    [ "    optLHS[dom - Extern, kind, gloc, lloc, sb, " + dispAllDecl decl + "]" ] @ 
-    [ "    optRHS[dom' - Extern, kind', gloc', lloc', sb', " + dispAllDecl decl + "]" ] @ 
+    [ "    optLHS[dom - Extern, kind, gloc, lloc1, lloc2, sb, " + dispAllDecl decl + "]" ] @ 
+    [ "    optRHS[dom' - Extern, kind', gloc', lloc1', lloc2', sb', " + dispAllDecl decl + "]" ] @ 
     [ "  }" ] @ 
     [ "}" ] 
 
@@ -203,5 +204,6 @@ let dispOptPredRelat (depth :int) (filen : string) ((name,decl,lhs,rhs) : string
     dispSimpPredRelat ("optRHS", (decl @ rhs)) @ 
     [ "" ] @ 
     [ "check { histIncl } for " + string depth + " but"] @ 
-    [ (List.filter (function | GlobDecl _ -> true | _ -> false) decl |> List.length |> string) + " Glob" ] 
-    
+    // Constrain the domain of global / local variables to exactly those in the opt definition
+    [ "exactly " + (List.filter (function | GlobDecl _ -> true | _ -> false) decl |> List.length |> string) + " Glob," ] @
+    [ "exactly " + (List.filter (function | ThrDecl _ -> true | _ -> false) decl |> List.length |> string) + " Thr" ] 

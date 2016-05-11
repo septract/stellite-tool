@@ -3,12 +3,13 @@
 module histRelat
 open c11Relat 
 
-pred preexecWF [ dom : set Action, kind : Action -> Kind,
-                 gloc, lloc : Action -> Loc, sb : Action -> Action ] { 
-  // no kind.RMW
-
+pred preexecWF [ dom : set Action, 
+                 kind : Action -> Kind,
+                 gloc : Action -> Glob,  
+                 lloc1, lloc2 : Action -> Thr, 
+                 sb : Action -> Action ] { 
   SBwf[dom, kind, sb] 
-  locWF[dom, kind, gloc, lloc] 
+  locWF[dom, kind, gloc, lloc1, lloc2] 
 
   // External actions are unordered in sb  
   no sb & ((Extern -> Action) + (Action -> Extern)) 
