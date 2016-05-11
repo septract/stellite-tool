@@ -15,24 +15,26 @@ let rec intersperse i xs =
 let dispGlobDecl cmds = 
     List.map (function | GlobDecl vs -> vs 
                            | _ -> []) cmds 
-    |> List.concat |> intersperse ", "
+    |> List.concat 
 
 /// Display the declared local variable names
-let dispThrDecl cmds : string = 
+let dispThrDecl cmds = 
     List.map (function | ThrDecl vs -> vs 
                            | _ -> []) cmds 
-    |> List.concat |> intersperse ", "
+    |> List.concat 
 
 /// Display the declared values
 let dispValDecl cmds = 
     List.map (function | ValDecl vs -> vs  
                        | _ -> []) cmds
-    |> List.concat |> intersperse ", "
+    |> List.concat 
 
 /// Display the variable names, then the value names
 // TODO: should be possible to refactor these three into something more general
 let dispAllDecl cmds =   
-     dispGlobDecl cmds + ", " + dispThrDecl cmds // + ", " + dispValDecl cmds
+     (dispGlobDecl cmds |> intersperse ", ") + 
+     ", " + 
+     (dispThrDecl cmds |> intersperse ", ") // + ", " + dispValDecl cmds
 
     //(List.map (function | GlobDecl vs -> vs  
     //                    | _ -> []) cmds) 
@@ -155,8 +157,8 @@ let dispSimpPredRelat ((name, cmds) : string * List<Command>) : List<string> =
       [ "pred " + name ] @
       [ "         [ dom : set Action, kind : Action -> Kind," ] @
       [ "           gloc : Action -> Glob, lloc1, lloc2 : Action -> Thr, " ] @
-      [ "           sb : Action -> Action, " + dispGlobDecl cmds + " : Glob, " 
-               + dispThrDecl cmds + " : Thr ] { "] @
+      [ "           sb : Action -> Action, " + (dispGlobDecl cmds |> intersperse ", ") + " : Glob, " 
+               + (dispThrDecl cmds |> intersperse ", ") + " : Thr ] { "] @
       [ "  sb in (dom -> dom)" ] @ 
       [ "  some disj " + (List.map actName acts |> intersperse ", ") + " : Action | { "] @ 
       [ "    dom = " + (List.map actName acts |> intersperse " + ") + " + Call + Ret" ] @ 
@@ -182,7 +184,8 @@ let dispHarnessPredRelat name decl =
     [ "  // Pre-execution WF" ] @ 
     [ "  preexecWF[dom, kind, gloc, lloc1, lloc2, sb]" ] @ 
     [ "  preexecWF[dom', kind', gloc', lloc1', lloc2', sb']" ] @ 
-    [ "  some " + dispGlobDecl decl + " : Glob, " + dispThrDecl decl + " : Thr | {" ] @ 
+    [ "  some disj " + (dispGlobDecl decl |> intersperse ", ") + " : Glob, " + 
+             "disj " + (dispThrDecl decl |> intersperse ", ") + " : Thr | {" ] @ 
     [ "    optLHS[dom - Extern, kind, gloc, lloc1, lloc2, sb, " + dispAllDecl decl + "]" ] @ 
     [ "    optRHS[dom' - Extern, kind', gloc', lloc1', lloc2', sb', " + dispAllDecl decl + "]" ] @ 
     [ "  }" ] @ 
@@ -203,7 +206,9 @@ let dispOptPredRelat (depth :int) (filen : string) ((name,decl,lhs,rhs) : string
     [ "" ] @ 
     dispSimpPredRelat ("optRHS", (decl @ rhs)) @ 
     [ "" ] @ 
-    [ "check { histIncl } for " + string depth + " but"] @ 
+    [ "check { histIncl } for " + string depth ] @
+    [ " but"] @
     // Constrain the domain of global / local variables to exactly those in the opt definition
-    [ "exactly " + (List.filter (function | GlobDecl _ -> true | _ -> false) decl |> List.length |> string) + " Glob," ] @
-    [ "exactly " + (List.filter (function | ThrDecl _ -> true | _ -> false) decl |> List.length |> string) + " Thr" ] 
+    [ "  exactly 1 Call, exactly 1 Ret," ] @ 
+    [ "  exactly " + (dispGlobDecl decl |> List.length |> string) + " Glob," ] @
+    [ "  exactly " + (dispThrDecl decl |> List.length |> string) + " Thr" ] 

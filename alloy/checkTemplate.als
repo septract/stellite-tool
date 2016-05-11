@@ -8,13 +8,15 @@ pred histIncl() {
   all dom, dom' : set Action, 
       kind, kind' : Action -> Kind,
       gloc, gloc' : Action -> Glob,
-      lloc1, lloc1' : Action -> Thr, 
-      lloc2, lloc2' : Action -> Thr, 
+      lloc1, lloc1' : Intern -> Thr, 
+      lloc2, lloc2' : Intern -> Thr, 
       callmap, retmap : Thr -> Val, 
       wv, rv : Action -> Val, 
       sb, sb' : Action -> Action,
       hb, mo, rf, guar, deny : Action -> Action
     when { 
+      no lloc2 + lloc2' 
+
       // Optimisation definition 
       optPred[dom, dom', kind, kind', gloc, gloc', lloc1, lloc1', lloc2, lloc2', ^sb, ^sb'] 
 
