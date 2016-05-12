@@ -63,14 +63,33 @@ fun CoWR_d [ dom : set Action, kind : Action -> Kind,
   } 
 } 
 
-fun HBacyc_d [ dom : set Action, kind : Action -> Kind,
-               loc : Action -> Loc, wv, rv : Action -> Val, 
+fun HBacyc_d [ dom : set Action, 
+               kind : Action -> Kind,
+               loc : Action -> Loc, 
+               wv, rv : Action -> Val, 
                hb, sb, mo, rf : Action -> Action ] 
                  : (Action -> Action) { 
   { u : (Extern + Ret), v : (Extern + Call) | 
     disj [u,v] 
    and 
     (v -> u) in hb 
+  } 
+} 
+
+fun Init_d [ dom : set Action, 
+             kind : Action -> Kind, 
+             gloc : Action -> Glob, 
+             wv, rv : Action -> Val, 
+             hb, sb, mo, rf : Action -> Action ] 
+                : (Action -> Action) { 
+  { u : (Extern + Ret), v : (Extern + Call) | 
+    some w : dom & kind.(Write + RMW) & gloc.Atomic, 
+         r : dom & kind.Read & gloc.Atomic | { 
+      no rf.r  // Read the init value 
+      (w -> u) in iden + hb
+      (v -> r) in iden + hb
+      w.gloc = r.gloc 
+    } 
   } 
 } 
 
@@ -82,13 +101,16 @@ fun getdeny[ dom : set Action, kind : Action -> Kind,
              loc : Action -> Loc, wv, rv : Action -> Val, 
              hb, sb, mo, rf : Action -> Action ] 
                  : Action -> Action { 
-   // Note: removed Ret -> Call deny because it's already enforced by sb 
-   (CoWR_d[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]
+    CoWR_d[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]
      + 
     HBvsMO_d[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]
      + 
-    HBacyc_d[dom, kind, loc, wv, rv, ^hb, sb, mo, rf])
-        - (Ret -> Call) 
+    HBacyc_d[dom, kind, loc, wv, rv, ^hb, sb, mo, rf] 
+     + 
+    Init_d[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]
+
+   // // Note: removed Ret -> Call deny because it's already enforced by sb 
+   //      - (Ret -> Call) 
 } 
 
 /*************************************************/ 
