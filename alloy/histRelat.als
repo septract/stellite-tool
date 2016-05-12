@@ -3,6 +3,7 @@
 module histRelat
 open c11Relat 
 
+// Pre-executions are well-formed in the optimisation
 pred preexecWF [ dom : set Action, 
                  kind : Action -> Kind,
                  gloc : Action -> Glob,  
@@ -11,6 +12,7 @@ pred preexecWF [ dom : set Action,
   SBwf[dom, kind, sb] 
   locWF[dom, kind, gloc, lloc1, lloc2] 
 
+  // Require this here explicitly 
   lloc1 in Intern -> Thr 
   lloc2 in Intern -> Thr
 
@@ -32,6 +34,7 @@ pred preexecWF [ dom : set Action,
   } 
 }
 
+// Deny representing HBvsMO violations 
 fun HBvsMO_d [ dom : set Action, kind : Action -> Kind,
                loc : Action -> Loc, wv, rv : Action -> Val, 
                hb, sb, mo, rf : Action -> Action ] 
@@ -45,8 +48,11 @@ fun HBvsMO_d [ dom : set Action, kind : Action -> Kind,
   } 
 } 
 
-fun CoWR_d [ dom : set Action, kind : Action -> Kind,
-             loc : Action -> Loc, wv, rv : Action -> Val, 
+// Deny representing CoWR violations 
+fun CoWR_d [ dom : set Action, 
+             kind : Action -> Kind,
+             loc : Action -> Loc, 
+             wv, rv : Action -> Val, 
              hb, sb, mo, rf : Action -> Action ] 
                 : (Action -> Action) { 
   { u : (Extern + Ret), v : (Extern + Call) |
@@ -63,6 +69,7 @@ fun CoWR_d [ dom : set Action, kind : Action -> Kind,
   } 
 } 
 
+// Deny representing the hb acyclicity requirement
 fun HBacyc_d [ dom : set Action, 
                kind : Action -> Kind,
                loc : Action -> Loc, 
@@ -76,6 +83,7 @@ fun HBacyc_d [ dom : set Action,
   } 
 } 
 
+// Deny representing the effect of initialisation reads
 fun Init_d [ dom : set Action, 
              kind : Action -> Kind, 
              gloc : Action -> Glob, 
@@ -93,12 +101,16 @@ fun Init_d [ dom : set Action,
   } 
 } 
 
+// Generate the guarantee: project hb to the External actions and Call / Ret
 fun getguar[ dom : Action, hb : Action -> Action ] : Action -> Action { 
   hb & ((Extern -> Extern) + (Call -> Extern) +  (Extern -> Ret)) 
 } 
 
-fun getdeny[ dom : set Action, kind : Action -> Kind,
-             loc : Action -> Loc, wv, rv : Action -> Val, 
+// Combine the different kinds of deny
+fun getdeny[ dom : set Action, 
+             kind : Action -> Kind,
+             loc : Action -> Loc, 
+             wv, rv : Action -> Val, 
              hb, sb, mo, rf : Action -> Action ] 
                  : Action -> Action { 
     CoWR_d[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]
@@ -108,17 +120,17 @@ fun getdeny[ dom : set Action, kind : Action -> Kind,
     HBacyc_d[dom, kind, loc, wv, rv, ^hb, sb, mo, rf] 
      + 
     Init_d[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]
-
-   // // Note: removed Ret -> Call deny because it's already enforced by sb 
-   //      - (Ret -> Call) 
 } 
 
 /*************************************************/ 
 /* Cutting Predicates                            */ 
 /*************************************************/
 
-pred cutR[ dom : set Action, kind : Action -> Kind,
-           loc : Action -> Loc, wv, rv : Action -> Val, 
+// Cut duplicate reads from the same location
+pred cutR[ dom : set Action, 
+           kind : Action -> Kind,
+           loc : Action -> Loc, 
+           wv, rv : Action -> Val, 
            hb, sb, mo, rf : Action -> Action ] { 
   all r : Extern & kind.Read & loc.Atomic & dom | 
   some w : Intern & dom | { 
@@ -127,6 +139,7 @@ pred cutR[ dom : set Action, kind : Action -> Kind,
   } 
 } 
 
+// Define which actions are directly visible to the optimisation 
 fun vizAct[ dom : set Action, rf : Action -> Action ] : Action  { 
   // Internal actions 
   (dom & Intern) + 
@@ -135,10 +148,15 @@ fun vizAct[ dom : set Action, rf : Action -> Action ] : Action  {
     some a' : dom & Intern | some ((a -> a') + (a' -> a)) & rf }
 } 
 
-pred cutW[ dom : set Action, kind : Action -> Kind,
-            loc : Action -> Loc, wv, rv : Action -> Val, 
-            hb, sb, mo, rf : Action -> Action ] { 
-  all disj w, w' : Extern & dom | { 
+// Cut writes / RMW apart from visible representatives
+pred cutW[ dom : set Action, 
+           kind : Action -> Kind,
+           loc : Action -> Loc, 
+           wv, rv : Action -> Val, 
+           hb, sb, mo, rf : Action -> Action ] { 
+  // pairs of actions w,w' have to be separated by a visible action in mo 
+  // otherwise they are cut. 
+  all disj w, w' : Extern & dom & kind.(Write + RMW) | { 
     {(w.loc = w'.loc) and (no (w + w') & vizAct[dom, rf])} 
        implies 
     some w'' : vizAct[dom, rf] | 

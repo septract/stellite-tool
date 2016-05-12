@@ -1,5 +1,5 @@
 module c11Relat
-open util/relation
+// open util/relation
 
 // TODO: Get rid of spesh, restrict Call / Ret to a singleton
 
@@ -8,13 +8,21 @@ fact {
   no NonAtomic 
 } 
 
+// Locations can be local or global 
 abstract sig Loc {} 
 sig Glob, Thr extends Loc {} 
+
+// Furthermore locations can be atomic or nonatomic 
 sig Atomic, NonAtomic in Glob {} 
+fact { 
+  Atomic + NonAtomic = Glob 
+  disj [ Atomic, NonAtomic ] 
+} 
 
 sig Val {} 
 one sig Init in Val {} // Magic initialisation value
 
+// Actions kinds corresponding to different memory actions
 abstract sig Kind {} 
 one sig Read, Write, RMW, AssmEq, Spesh extends Kind {} 
 
@@ -22,12 +30,7 @@ one sig Read, Write, RMW, AssmEq, Spesh extends Kind {}
 abstract sig Action {} 
 sig Intern, Extern, Call, Ret extends Action {} 
 
-// Sanity properties 
-fact { 
-  Atomic + NonAtomic = Glob 
-  disj [ Atomic, NonAtomic ] 
-} 
-
+// Locations are associated with actions correctly 
 pred locWF[ dom : set Action, 
             kind : Action -> Kind, 
             gloc : Action -> Glob, 
@@ -43,17 +46,19 @@ pred locWF[ dom : set Action,
       // All reads and writes access global locations
       a in kind.(Read + Write + RMW)  iff  one a.gloc
 
+      // Reads and writes acces one local variable 
       a in kind.(Read + Write) & Intern  implies  { 
         one a.lloc1 and no a.lloc2
       } 
 
+      // Assume and RMW access two local variables
       a in kind.(AssmEq + RMW) & Intern  implies  { 
         one a.lloc1 and one a.lloc2
       } 
     } 
 } 
 
-// Values associated with actions correctly 
+// Values are associated with actions correctly 
 pred valWF[ dom : set Action,
             kind : Action -> Kind, 
             wv, rv : Action -> Val ] { 
@@ -84,13 +89,14 @@ pred is_core [ r : Action -> Action ] {
     (a -> b) + (b -> c) in ^r  implies  not (a -> c) in r 
 } 
 
-// Pre-execution structure 
-pred SBwf [ dom : set Action, kind : Action -> Kind,
+// SB is acyclic 
+pred SBwf [ dom : set Action, 
+            kind : Action -> Kind,
             sb: Action -> Action ] {
-  // Acyclic 
   no iden & ^sb     
 } 
 
+// HB is acyclic 
 pred HBacyc [ dom : set Action, kind : Action -> Kind,
               loc : Action -> Loc, wv, rv : Action -> Val, 
               hb, sb, mo, rf : Action -> Action ] { 
@@ -130,7 +136,6 @@ fun lastval [ dom : set Action,
 } 
 
 // Write the value given at the call to the same local variable.
-// TODO: this is kind of ugly - refactor it into multiple predicates?
 // TODO: handle internal RMW  
 pred RFwfLocal [ dom : set Action, 
                 kind : Action -> Kind, 
@@ -152,47 +157,13 @@ pred RFwfLocal [ dom : set Action,
     w.wv = lastval[dom, kind, lloc1, callmap, rv, sb, w, w.lloc1] 
   } 
 
-  // // Writes take the correct local var value 
-  // all w : dom & kind.Write | {
-  //   // Take the value of the sb-latest read on this thr-local var 
-  //   {all r : dom & kind.Read | { 
-  //     r -> w in ^sb 
-  //     r.lloc1 = w.lloc1
-  //     no r' : dom & kind.Read | { 
-  //       (r -> r') + (r' -> w) in ^sb 
-  //       r'.lloc1 = w.lloc1
-  //     }  
-  //   } implies r.rv = w.wv} 
-  //   and 
-  //   // If none exists, take the value in the callmap
-  //   {{ Call -> w in ^sb 
-  //     no r' : dom & kind.Read | { 
-  //       (Call -> r') + (r' -> w) in ^sb 
-  //       r'.lloc1 = w.lloc1
-  //     }  
-  //   } implies w.wv = (w.lloc1).callmap } 
-  // } 
-
+  // The retmap takes the correct values. 
   all t : Thr | { 
     t.retmap = lastval[dom, kind, lloc1, callmap, rv, sb, Ret, t] 
   } 
-
-  // the return map takes the correct local var value
-  // either from Call or a read. 
-  // all t : Thr, r : dom & (kind.Read + Call) | { 
-  //   r -> Ret in ^sb
-  //   r.lloc1 = t 
-  //   no r' : dom & kind.Read | { 
-  //     (r -> r') + (r' -> Call) in ^sb 
-  //     r'.lloc1 = t 
-  //   }
-  //   not (r -> Call) + (Call -> Ret) in ^sb 
-  // } implies { 
-  //   r in Call implies t.callmap = t.retmap  
-  //             else r.rv = t.retmap  
-  // } 
 } 
 
+// RF is well-formed 
 pred RFwf [ dom : set Action, 
             kind : Action -> Kind,
             loc : Action -> Loc, 
@@ -220,6 +191,7 @@ pred RFwf [ dom : set Action,
   } 
 } 
 
+// Define hb by combining rf and hb over atomics 
 pred HBdef [ dom : set Action, 
              kind : Action -> Kind,
              loc : Action -> Loc, 
@@ -230,6 +202,7 @@ pred HBdef [ dom : set Action,
   hb = ^(sw + sb)
 } 
 
+// Coherence order is respected
 // Note: this also covers the AtomRMW rule. 
 pred CoWR [ dom : set Action, kind : Action -> Kind,
             loc : Action -> Loc, wv, rv : Action -> Val, 
@@ -238,6 +211,7 @@ pred CoWR [ dom : set Action, kind : Action -> Kind,
     not { (w1 -> r) in mo.(hb + mo) } 
 } 
 
+// Modification order is well-formed
 pred MOwf [ dom : set Action, kind : Action -> Kind,
             loc : Action -> Loc, wv, rv : Action -> Val, 
             hb, sb, mo, rf : Action -> Action ] { 
@@ -251,6 +225,7 @@ pred MOwf [ dom : set Action, kind : Action -> Kind,
        (w1.loc = w2.loc) and w1 + w2 in (dom <: loc.Atomic)
  } 
  
+// HB and MO do not contradict one another
 pred HBvsMO [ dom : set Action, kind : Action -> Kind,
               loc : Action -> Loc, wv, rv : Action -> Val, 
               hb, sb, mo, rf : Action -> Action ] { 
@@ -262,15 +237,21 @@ pred HBvsMO [ dom : set Action, kind : Action -> Kind,
 //   no iden & ^(e.hb + e.mo) 
 // } 
 
-pred RFNonAtomic [ dom : set Action, kind : Action -> Kind,
-                   loc : Action -> Loc, wv, rv : Action -> Val, 
+// Reads-from edges for NAs all follow hb 
+pred RFNonAtomic [ dom : set Action,  
+                   kind : Action -> Kind,
+                   loc : Action -> Loc, 
+                   wv, rv : Action -> Val, 
                    hb, sb, mo, rf : Action -> Action ] { 
   let NA_reads = (dom <: loc).NonAtomic & kind.Read | 
-     rf :> NA_reads in hb 
+     (rf :> NA_reads) in hb 
 } 
 
-pred DRF [ dom : set Action, kind : Action -> Kind,
-           loc : Action -> Loc, wv, rv : Action -> Val, 
+// Test whether the execution is DRF 
+pred DRF [ dom : set Action, 
+           kind : Action -> Kind,
+           loc : Action -> Loc, 
+           wv, rv : Action -> Val, 
            hb, sb, mo, rf : Action -> Action ] { 
   all l : NonAtomic | 
   all disj w, a : (dom <: loc).l | 
@@ -281,7 +262,7 @@ pred DRF [ dom : set Action, kind : Action -> Kind,
     (w -> a) in (hb + ~hb) 
 } 
 
-
+// Combine the different predicates into execution validity 
 pred valid [ dom : set Action, 
              kind : Action -> Kind,
              gloc : Action -> Glob, 
@@ -310,6 +291,7 @@ pred valid [ dom : set Action,
   RFNonAtomic[dom, kind, gloc, wv, rv, hb, sb, mo, rf] 
 } 
 
+// The execution is sequential, i.e. sb is total
 pred sequential [ dom : set Action, sb : Action -> Action ] { 
   all disj a1, a2 : dom |   a1 -> a2 in ^sb + ^(~sb)
 } 
