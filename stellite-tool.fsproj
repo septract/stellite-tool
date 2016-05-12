@@ -39,6 +39,9 @@
     <Reference Include="FParsecCS">
       <HintPath>packages\FParsec-Big-Data-Edition.1.0.2\lib\net40-client\FParsecCS.dll</HintPath>
     </Reference>
+    <Reference Include="Argu">
+      <HintPath>packages\Argu.2.1\lib\net40\Argu.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="parser.fs" />

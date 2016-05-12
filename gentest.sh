@@ -7,5 +7,5 @@ then
 fi
 
 touch $2 || exit 1; # check that the file is accessible  
-./stellite.sh $1 > $2 || { echo "Predicate generation failed!">&2 ; exit 1; } 
+./stellite.sh --depth 7 --file $1 > $2 || { echo "Predicate generation failed!">&2 ; exit 1; } 
 cat ./alloy/checkTemplate.als >> $2 
