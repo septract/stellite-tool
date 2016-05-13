@@ -227,3 +227,5 @@ let dispOptPredRelat (depth :int) (filen : string) ((name,decl,lhs,rhs) : string
     [ "  exactly 1 Call, exactly 1 Ret," ] @ 
     [ "  exactly " + (dispGlobDecl decl |> List.length |> string) + " Glob," ] @
     [ "  exactly " + (dispThrDecl decl |> List.length |> string) + " Thr" ] 
+
+

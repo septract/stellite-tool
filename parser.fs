@@ -73,7 +73,7 @@ let parseRead fg =
     between (skipString "read(" >>. ws) 
             parseEndBrac 
             (tuple2 parseIdent (wscomma >>. parseIdent))
-    |>> fun (a,b) -> Read (getFresh fg, (a, b)) 
+    |>> fun (a,b) -> Read (getFresh fg, (a,b)) 
 
 /// Parse a RMW action 
 let parseRMW fg = 
@@ -83,7 +83,7 @@ let parseRMW fg =
                     (parseIdent .>> wscomma) 
                     (parseIdent .>> wscomma) 
                     parseIdent) 
-    |>> fun (a,b,c,d) -> RMW (getFresh fg, (a, b, c, d)) 
+    |>> fun (a,b,c,d) -> RMW (getFresh fg, (a,b,c,d)) 
 
 /// Parse an assume operation 
 let parseAssume fg =
@@ -95,10 +95,10 @@ let parseAssume fg =
 /// Parse the file name 
 let parseName = skipString "/**" >>. ws >>. parseIdent .>> skipRestOfLine true 
 
-/// Parse a single command terminated by a semicolon 
-let parseDecl fg =    (choice[ parseThrDecl
-                               parseGlobDecl 
-                               parseValDecl ]) .>> (ws .>> pstring ";" .>> ws) 
+/// Parse a single declaration / command terminated by a semicolon 
+let parseDecl fg = (choice[ parseThrDecl
+                            parseGlobDecl 
+                            parseValDecl ]) .>> (ws .>> pstring ";" .>> ws) 
 
 let parseCmd fg = (choice[ (parseWrite fg)
                            (parseRead fg) 

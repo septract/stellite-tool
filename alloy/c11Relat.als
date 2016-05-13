@@ -3,6 +3,8 @@ module c11Relat
 
 // TODO: Get rid of spesh, restrict Call / Ret to a singleton
 
+// TODO: don't have non-atomic actions in this model, just NA locations. 
+
 // Disable non-atomics entirely
 fact { 
   no NonAtomic 
@@ -12,7 +14,7 @@ fact {
 abstract sig Loc {} 
 sig Glob, Thr extends Loc {} 
 
-// Furthermore locations can be atomic or nonatomic 
+// Furthermore global locations can be atomic or nonatomic 
 sig Atomic, NonAtomic in Glob {} 
 fact { 
   Atomic + NonAtomic = Glob 
@@ -147,6 +149,7 @@ pred RFwfLocal [ dom : set Action,
   callmap in Thr -> one Val 
   retmap in Thr -> one Val 
 
+  // Assumes demand equality on local var values
   all a : dom & kind.AssmEq | { 
     lastval[dom, kind, lloc1, callmap, rv, sb, a, a.lloc1] = 
       lastval[dom, kind, lloc1, callmap, rv, sb, a, a.lloc2] 
@@ -186,12 +189,14 @@ pred RFwf [ dom : set Action,
 
     // Allow initialisation reads, but force actions to 
     // read from an explicit write if any is hb-available 
+    // Note MO used here because r might be a RMW 
     (some (hb + mo).r & (kind.(Write + RMW) <: loc).(r.loc) ) 
           implies (some rf.r) 
+    // TODO: Mark isn't completely convinced
   } 
 } 
 
-// Define hb by combining rf and hb over atomics 
+// Define hb by combining rf with hb over atomics 
 pred HBdef [ dom : set Action, 
              kind : Action -> Kind,
              loc : Action -> Loc, 
@@ -223,8 +228,9 @@ pred MOwf [ dom : set Action, kind : Action -> Kind,
   all disj w1, w2 : kind.(Write + RMW) | 
      (w1 -> w2) in mo + ~mo iff 
        (w1.loc = w2.loc) and w1 + w2 in (dom <: loc.Atomic)
- } 
+} 
  
+
 // HB and MO do not contradict one another
 pred HBvsMO [ dom : set Action, kind : Action -> Kind,
               loc : Action -> Loc, wv, rv : Action -> Val, 
@@ -247,21 +253,6 @@ pred RFNonAtomic [ dom : set Action,
      (rf :> NA_reads) in hb 
 } 
 
-// Test whether the execution is DRF 
-pred DRF [ dom : set Action, 
-           kind : Action -> Kind,
-           loc : Action -> Loc, 
-           wv, rv : Action -> Val, 
-           hb, sb, mo, rf : Action -> Action ] { 
-  all l : NonAtomic | 
-  all disj w, a : (dom <: loc).l | 
-    (w in kind.Write) 
-    and 
-    (a in kind.(Write + Read)) 
-    implies 
-    (w -> a) in (hb + ~hb) 
-} 
-
 // Combine the different predicates into execution validity 
 pred valid [ dom : set Action, 
              kind : Action -> Kind,
@@ -280,7 +271,6 @@ pred valid [ dom : set Action,
 
   // Local variable handling 
   RFwfLocal[dom, kind, gloc, lloc1, lloc2, callmap, retmap, wv, rv, hb, sb, mo, rf] 
-
   // Axioms 
   HBacyc[dom, kind, gloc, wv, rv, hb, sb, mo, rf] 
   RFwf[dom, kind, gloc, wv, rv, hb, sb, mo, rf] 
@@ -289,6 +279,21 @@ pred valid [ dom : set Action,
   MOwf[dom, kind, gloc, wv, rv, hb, sb, mo, rf] 
   HBvsMO[dom, kind, gloc, wv, rv, hb, sb, mo, rf] 
   RFNonAtomic[dom, kind, gloc, wv, rv, hb, sb, mo, rf] 
+} 
+
+// Test whether the execution is DRF 
+pred DRF [ dom : set Action, 
+           kind : Action -> Kind,
+           loc : Action -> Loc, 
+           wv, rv : Action -> Val, 
+           hb, sb, mo, rf : Action -> Action ] { 
+  all l : NonAtomic | 
+  all disj w, a : (dom <: loc).l | 
+    (w in kind.Write) 
+    and 
+    (a in kind.(Write + Read)) 
+    implies 
+    (w -> a) in (hb + ~hb) 
 } 
 
 // The execution is sequential, i.e. sb is total

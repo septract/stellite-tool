@@ -1,3 +1,3 @@
 #!/bin/sh
 
-java -jar alloy-mod.jar $*
+java -jar -Xmx2048m alloy-mod.jar $*

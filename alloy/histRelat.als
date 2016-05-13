@@ -3,6 +3,8 @@
 module histRelat
 open c11Relat 
 
+// Throw anti-HB into deny in the check 
+
 // Pre-executions are well-formed in the optimisation
 pred preexecWF [ dom : set Action, 
                  kind : Action -> Kind,
@@ -29,8 +31,8 @@ pred preexecWF [ dom : set Action,
   // Call / Return bracket internal actions
   all c : dom & Call, r : dom & Ret | { 
     (c -> r) in ^sb 
-    all i : dom | 
-      i in Intern iff (c -> i) + (i -> r) in ^sb
+    all i : dom & Intern | 
+      (c -> i) + (i -> r) in ^sb
   } 
 }
 
@@ -40,8 +42,7 @@ fun HBvsMO_d [ dom : set Action, kind : Action -> Kind,
                hb, sb, mo, rf : Action -> Action ] 
                   : (Action -> Action) { 
   { u : (Extern + Ret), v : (Extern + Call) | 
-    some disj w1, w2 : (dom <: loc.Atomic) | 
-    { 
+    some disj w1, w2 : (dom <: loc.Atomic) | { 
       (w2 -> w1) in mo
       (w1 -> u) + (v -> w2) in (iden + hb) 
     } 
@@ -58,8 +59,7 @@ fun CoWR_d [ dom : set Action,
   { u : (Extern + Ret), v : (Extern + Call) |
     disj [u,v] and 
     some w1, w2 : kind.Write & (dom <: loc.Atomic), 
-               r : kind.Read & (dom <: loc.Atomic)   | 
-    { 
+         r : kind.Read & (dom <: loc.Atomic) | { 
       disj [w1, w2, r] 
       (w1 -> r) in rf 
       (w1 -> w2) in mo
@@ -103,7 +103,7 @@ fun Init_d [ dom : set Action,
 
 // Generate the guarantee: project hb to the External actions and Call / Ret
 fun getguar[ dom : Action, hb : Action -> Action ] : Action -> Action { 
-  hb & ((Extern -> Extern) + (Call -> Extern) +  (Extern -> Ret)) 
+  hb & ((Extern -> Extern) + (Call -> Extern) + (Extern -> Ret)) 
 } 
 
 // Combine the different kinds of deny
@@ -113,13 +113,13 @@ fun getdeny[ dom : set Action,
              wv, rv : Action -> Val, 
              hb, sb, mo, rf : Action -> Action ] 
                  : Action -> Action { 
-    CoWR_d[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]
+    ^(CoWR_d[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]
      + 
     HBvsMO_d[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]
      + 
     HBacyc_d[dom, kind, loc, wv, rv, ^hb, sb, mo, rf] 
      + 
-    Init_d[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]
+    Init_d[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]) 
 } 
 
 /*************************************************/ 

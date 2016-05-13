@@ -15,8 +15,6 @@ pred histIncl() {
       sb, sb' : Action -> Action,
       hb, mo, rf, guar, deny : Action -> Action
     when { 
-      // no lloc2 + lloc2' 
-
       // Optimisation definition 
       optPred[dom, dom', kind, kind', gloc, gloc', lloc1, lloc1', lloc2, lloc2', ^sb, ^sb'] 
 
@@ -49,6 +47,7 @@ pred histIncl() {
   } | 
   some wvi, rvi : Intern -> Val, 
        mo', rf' : Action -> Action | { 
+   // TODO: fix this for non-atomics 
    let hb' = ^(sb' + rf'), 
        wv' = wvi + (Extern <: wv), 
        rv' = rvi + (Extern <: rv) | { 
