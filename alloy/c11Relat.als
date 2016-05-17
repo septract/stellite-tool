@@ -1,8 +1,6 @@
 module c11Relat
 // open util/relation
 
-// TODO: Get rid of spesh, restrict Call / Ret to a singleton
-
 // TODO: don't have non-atomic actions in this model, just NA locations. 
 
 // Disable non-atomics entirely
@@ -26,7 +24,7 @@ one sig Init in Val {} // Magic initialisation value
 
 // Actions kinds corresponding to different memory actions
 abstract sig Kind {} 
-one sig Read, Write, RMW, AssmEq, Spesh extends Kind {} 
+one sig Read, Write, RMW, AssmEq extends Kind {} 
 
 // Actions 
 abstract sig Action {} 
@@ -37,14 +35,14 @@ pred locWF[ dom : set Action,
             kind : Action -> Kind, 
             gloc : Action -> Glob, 
             lloc1, lloc2 : Intern -> Thr ] { 
-    kind in dom -> one Kind 
+    kind in (dom - (Call + Ret)) -> one Kind 
+    no (Call + Ret).kind
+
     gloc in (dom - (Call + Ret)) -> lone Glob
     lloc1 in dom -> lone Thr
     lloc2 in dom -> lone Thr
 
     all a : dom | { 
-      a in (Call + Ret) iff kind[a] in Spesh
-
       // All reads and writes access global locations
       a in kind.(Read + Write + RMW)  iff  one a.gloc
 
