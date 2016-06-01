@@ -2,7 +2,7 @@
 
 for file in $(find ./examples/{pass,fail} -iname '*.stl' | sort);
 do
-  printf "Stellite> $file... "
+  # printf "Stellite> $file... "
   name=`basename $file .stl`
   TMPFILE=`mktemp /tmp/${name}.XXXXXX` || \
       { echo "Couldn't create temporary file!">&2; exit 1; } 
@@ -14,11 +14,11 @@ do
 
   # Check the outcome
   if grep -q "OUTCOME" $TMPFILE; then 
-       printf "pass";  
+       printf "Stellite> %-40s pass" $file;  
   else 
-       printf "fail"; 
+       printf "Stellite> %-40s fail" $file;  
   fi  
-  printf " ($(($ENDTIME - $STARTTIME)) seconds)\n"
+  printf " ($(($ENDTIME - $STARTTIME)) secs)\n"
   
   # Detect Alloy warnings 
   if grep -q "Warning:" $TMPFILE; then 
