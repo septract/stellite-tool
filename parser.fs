@@ -96,7 +96,7 @@ let parseAssume fg =
 /// Parse an SC fence operation 
 let parseFenceSC fg = 
     (skipString "fenceSC" >>. ws)
-    >>% (FenceSC (getFresh fg)) 
+    |>> fun _ -> FenceSC (getFresh fg)
 
 /// Parse the file name 
 let parseName = skipString "/**" >>. ws >>. parseIdent .>> skipRestOfLine true 
