@@ -32,6 +32,7 @@ type Command =
 //    | Choice of Command * Command 
 //    | Cond of BExp * List<Command>
     | AssumeEq of int * (Ident * Ident)
+    | FenceSC of int 
 
 /// Parse comment 
 let com = skipString "//" .>> skipRestOfLine true
@@ -50,7 +51,7 @@ let parseEndBrac = (ws .>> skipString ")")
 
 /// Parse an identifier
 let parseIdent = many1Chars2 (pchar '_' <|> asciiLetter)
-                          (pchar '_' <|> asciiLetter <|> digit)
+                             (pchar '_' <|> asciiLetter <|> digit)
 let parseIdentList = sepBy parseIdent wscomma
 
 /// Parse declaration lists 
@@ -58,7 +59,7 @@ let parseGlobDecl = skipString "global " >>. ws >>. parseIdentList |>> GlobDecl
 let parseThrDecl = skipString "local" >>. ws >>. parseIdentList |>> ThrDecl 
 let parseValDecl = skipString "val " >>. ws >>. parseIdentList |>> ValDecl 
 
-/// Note parseWrite / parseRead / parseRMW all pass a fresh-name generator
+/// Note parseWrite / parseRead / parseRMW all pass a fresh-name generator fg
 /// This is a mutable counter which populates the identifier field of the action. 
 
 /// Parse a write action 
@@ -92,6 +93,11 @@ let parseAssume fg =
             (tuple2 parseIdent (ws >>. skipString "," >>. ws >>. parseIdent) ) 
     |>> fun (a,b) -> AssumeEq (getFresh fg, (a,b))
 
+/// Parse an SC fence operation 
+let parseFenceSC fg = 
+    (skipString "fenceSC" >>. ws)
+    >>% (FenceSC (getFresh fg)) 
+
 /// Parse the file name 
 let parseName = skipString "/**" >>. ws >>. parseIdent .>> skipRestOfLine true 
 
@@ -100,10 +106,11 @@ let parseDecl fg = (choice[ parseThrDecl
                             parseGlobDecl 
                             parseValDecl ]) .>> (ws .>> pstring ";" .>> ws) 
 
-let parseCmd fg = (choice[ (parseWrite fg)
-                           (parseRead fg) 
+let parseCmd fg = (choice[ parseWrite fg
+                           parseRead fg 
                            //(parseRMW fg) 
-                           parseAssume fg ]) .>> (ws .>> pstring ";" .>> ws) 
+                           parseAssume fg 
+                           parseFenceSC fg]) .>> (ws .>> pstring ";" .>> ws) 
  
 /// Parse an optimisation script                                                  
 let parseOptScript fg : Parser<_, unit> = 

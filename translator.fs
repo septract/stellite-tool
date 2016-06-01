@@ -51,10 +51,13 @@ let isAct = function | Write _ | Read _ | RMW _ -> true
 let isAssm = function | AssumeEq _ -> true
                       | _ -> false 
 
+let isFence = function | FenceSC _ -> true
+                       | _ -> false 
+
 /// Get the identifier for an action 
 let getActionId a = 
     match a with 
-    | Write (i,_) | Read (i,_) | RMW (i,_) | AssumeEq (i,_) -> i
+    | Write (i,_) | Read (i,_) | RMW (i,_) | AssumeEq (i,_) | FenceSC i -> i
     | _ -> failwith "getActionId: not a valid parameter!" 
 
 /// Get the variable for an action 
@@ -87,6 +90,7 @@ let actKind c =
     | Read _ -> "Read" 
     //| RMW _ -> "RMW" 
     | AssumeEq _ -> "AssmEq" 
+    | FenceSC _ -> "FenceSC" 
     | _ -> failwith "actKind: not an action!"
 
 /// Generate equality assertions for read-write and read-value pairs. 
@@ -125,7 +129,6 @@ let rec seqDefn names : string =
  *   Predicates for the simpler C11 model
  *********************************************************************) 
 
-// TODO: deal with the case where we don't declare any explicit values? 
 (*
 let dispSimpPredHO ((name, cmds) : string * List<Command>) : List<string> =
     let acts = (List.filter isAct) cmds in
@@ -166,22 +169,23 @@ let dispOptPredHO ((name,decl,lhs,rhs) : string * List<Command> * List<Command> 
 let dispSimpPredRelat ((name, cmds) : string * List<Command>) : List<string> =
     let acts = (List.filter isAct) cmds in
     let assms = (List.filter isAssm) cmds in 
+    let fences = (List.filter isFence) cmds in 
       [ "pred " + name ] @
       [ "         [ dom : set Action, kind : Action -> Kind," ] @
       [ "           gloc : Action -> Glob, lloc1, lloc2 : Action -> Thr, " ] @
       [ "           sb : Action -> Action, " + (dispGlobDecl cmds |> intersperse ", ") + " : Glob, " 
                + (dispThrDecl cmds |> intersperse ", ") + " : Thr ] { "] @
       [ "  sb in (dom -> dom)" ] @ 
-      (if (List.length acts > 0) then 
-        [ "  some disj " + (List.map actName (acts @ assms) |> intersperse ", " ) + " : Action | "]
+      (if (List.length (acts @ assms @ fences) > 0) then 
+        [ "  some disj " + (List.map actName (acts @ assms @ fences) |> intersperse ", " ) + " : Action | "]
       else []) @ 
       [ "  { "] @ 
-      [ "    dom = " + (List.fold (fun c a -> (actName a) + " + " + c) "" (acts @ assms) ) + "Call + Ret" ] @ 
+      [ "    dom = " + (List.fold (fun c a -> (actName a) + " + " + c) "" (acts @ assms @ fences) ) + "Call + Ret" ] @ 
       [ "    (Call -> Ret)" + (List.map actName acts |> seqDefn) + " in sb" ] @ 
       (List.map (fun c -> "    " + (actName c) + ".gloc = " + (getActionGloc c)) acts) @ 
       (List.map (fun c -> "    " + (actName c) + ".lloc1 = " + (getActionlloc1 c)) (acts @ assms)) @ 
       (List.map (fun c -> "    " + (actName c) + ".lloc2 = " + (getActionlloc2 c)) assms) @ 
-      (List.map (fun c -> "    " + (actName c) + " in kind." + (actKind c)) (acts @ assms)) @ 
+      (List.map (fun c -> "    " + (actName c) + " in kind." + (actKind c)) (acts @ assms @ fences)) @ 
       //(List.map ((+) "    ") (genEqs cmds)) @ 
       [ "  }"] @  
       [ "}"] 

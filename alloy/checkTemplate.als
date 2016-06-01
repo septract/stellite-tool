@@ -35,6 +35,7 @@ pred histIncl() {
       // Cut irrelevant executions. 
       cutR[dom, kind, gloc, wv, rv, ^hb, ^sb, mo, rf] 
       cutW[dom, kind, gloc, wv, rv, ^hb, ^sb, mo, rf] 
+      cutF[dom, kind, ^hb, ^sb, mo, rf] 
 
       // Sanity conditions 
       Action = dom + dom' 
@@ -48,7 +49,7 @@ pred histIncl() {
   some wvi, rvi : Intern -> Val, 
        mo', rf' : Action -> Action | { 
    // TODO: fix this for non-atomics 
-   let sc' = mo & (kind.FenceSC -> kind.FenceSC),  
+   let sc' = mo' & (kind.FenceSC -> kind.FenceSC),  
        hb' = ^(sb' + rf' + sc'), 
        wv' = wvi + (Extern <: wv), 
        rv' = rvi + (Extern <: rv) | { 

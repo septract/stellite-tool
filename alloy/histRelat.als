@@ -166,10 +166,12 @@ pred cutW[ dom : set Action,
 } 
 
 // Cut fences 
-// TODO: doesn't do anything at the moment
-// pred cutF[ dom : set Action, 
-//            kind : Action -> Loc, 
-//            hb, sb, mo, rf : Action -> Action ] { 
-// 
-// }  
+pred cutF[ dom : set Action, 
+           kind : Action -> Kind, 
+           hb, sb, mo, rf : Action -> Action ] { 
+  all disj f, f' : Extern & dom & kind.FenceSC | {
+    some f'' : vizAct[dom, rf] | 
+      (f -> f'') + (f'' -> f') in mo 
+  } 
+}  
 
