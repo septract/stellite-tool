@@ -2,7 +2,6 @@
 
 module histRelat
 open c11Relat 
-open util/boolean 
 
 // Throw anti-HB into deny in the check 
 
@@ -43,7 +42,7 @@ fun HBvsMO_d [ dom : set Action, kind : Action -> Kind,
                hb, sb, mo, rf : Action -> Action ] 
                   : (Action -> Action) { 
   { u : (Extern + Ret), v : (Extern + Call) | 
-    some disj w1, w2 : (dom <: loc.Atomic) | { 
+    some disj w1, w2 : dom | { 
       (w2 -> w1) in mo
       (w1 -> u) + (v -> w2) in (iden + hb) 
     } 
@@ -59,7 +58,7 @@ fun CoWR_d [ dom : set Action,
                 : (Action -> Action) { 
   { u : (Extern + Ret), v : (Extern + Call) |
     disj [u,v] and 
-    some w1, w2 : kind.Write & (dom <: loc.Atomic), 
+    some w1, w2 : kind.(Write + RMW) & (dom <: loc.Atomic), 
          r : kind.Read & (dom <: loc.Atomic) | { 
       disj [w1, w2, r] 
       (w1 -> r) in rf 
@@ -120,7 +119,8 @@ fun getdeny[ dom : set Action,
      + 
     HBacyc_d[dom, kind, loc, wv, rv, ^hb, sb, mo, rf] 
      + 
-    Init_d[dom, kind, loc, wv, rv, ^hb, sb, mo, rf]) 
+    Init_d[dom, kind, loc, wv, rv, ^hb, sb, mo, rf])
+     - (Ret -> Call)  
 } 
 
 /*************************************************/ 

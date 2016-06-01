@@ -61,6 +61,11 @@ pred locWF[ dom : set Action,
       a in kind.(AssmEq + RMW) & Intern  implies  { 
         one a.lloc1 and one a.lloc2
       } 
+  
+      // Fences don't access local variables
+      a in kind.FenceSC & Intern implies { 
+        no a.lloc1 and no a.lloc2 
+      } 
     } 
 } 
 
@@ -205,7 +210,8 @@ pred HBdef [ dom : set Action,
       sw = rf & (aact -> aact) | 
 
   // sc is mo projected to SC fences
-  let sc = mo & (kind.FenceSC -> kind.FenceSC) | 
+  let fences = dom & (kind.FenceSC),  
+      sc = mo & (fences -> fences) | 
 
   hb = ^(sw + sb + sc)
 } 
@@ -225,15 +231,17 @@ pred MOwf [ dom : set Action, kind : Action -> Kind,
             hb, sb, mo, rf : Action -> Action ] { 
   mo = ^mo     // transitive
   no iden & mo  // irreflexive 
-  mo in kind.(Write + RMW) -> kind.(Write + RMW)
+  mo in kind.(Write + RMW + FenceSC) -> kind.(Write + RMW + FenceSC)
   
-  // per-location total on atomics
-  all disj w1, w2 : kind.(Write + RMW) | 
-     (w1 -> w2) in mo + ~mo iff 
-       (w1.loc = w2.loc) and w1 + w2 in (dom <: loc.Atomic)
-
-  // total mo on SC fences 
-  all disj f1, f2 : kind.FenceSC | (f1 -> f2) in mo + ~mo
+  all disj w1, w2 : dom | {
+    (w1 -> w2) in mo + ~mo iff { 
+      // per-location total on atomic read / RMWs 
+      ((w1.loc = w2.loc) and w1 + w2 in (loc.Atomic & kind.(Write + RMW))) 
+        or 
+      // total mo on SC fences 
+      (w1 + w2 in kind.FenceSC) 
+    } 
+  } 
 } 
  
 
@@ -277,6 +285,7 @@ pred valid [ dom : set Action,
 
   // Local variable handling 
   RFwfLocal[dom, kind, gloc, lloc1, lloc2, callmap, retmap, wv, rv, hb, sb, mo, rf] 
+
   // Axioms 
   HBacyc[dom, kind, gloc, wv, rv, hb, sb, mo, rf] 
   RFwf[dom, kind, gloc, wv, rv, hb, sb, mo, rf] 
