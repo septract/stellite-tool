@@ -48,7 +48,8 @@ pred histIncl() {
   some wvi, rvi : Intern -> Val, 
        mo', rf' : Action -> Action | { 
    // TODO: fix this for non-atomics 
-   let hb' = ^(sb' + rf'), 
+   let sc' = mo & (kind.FenceSC -> kind.FenceSC),  
+       hb' = ^(sb' + rf' + sc'), 
        wv' = wvi + (Extern <: wv), 
        rv' = rvi + (Extern <: rv) | { 
 

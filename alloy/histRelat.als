@@ -2,6 +2,7 @@
 
 module histRelat
 open c11Relat 
+open util/boolean 
 
 // Throw anti-HB into deny in the check 
 
@@ -77,8 +78,8 @@ fun HBacyc_d [ dom : set Action,
                hb, sb, mo, rf : Action -> Action ] 
                  : (Action -> Action) { 
   { u : (Extern + Ret), v : (Extern + Call) | 
-    disj [u,v] 
-   and 
+    // disj [u,v] 
+    // and 
     (v -> u) in hb 
   } 
 } 
@@ -164,4 +165,11 @@ pred cutW[ dom : set Action,
   } 
 } 
 
+// Cut fences 
+// TODO: doesn't do anything at the moment
+// pred cutF[ dom : set Action, 
+//            kind : Action -> Loc, 
+//            hb, sb, mo, rf : Action -> Action ] { 
+// 
+// }  
 

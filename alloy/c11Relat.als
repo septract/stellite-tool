@@ -8,6 +8,12 @@ fact {
   no NonAtomic 
 } 
 
+// Helper predicate: assert there are no transitive edges in a relation 
+pred is_core [ r : Action -> Action ] { 
+  all a,b,c: Action | 
+    (a -> b) + (b -> c) in ^r  implies  not (a -> c) in r 
+} 
+
 // Locations can be local or global 
 abstract sig Loc {} 
 sig Glob, Thr extends Loc {} 
@@ -24,7 +30,7 @@ one sig Init in Val {} // Magic initialisation value
 
 // Actions kinds corresponding to different memory actions
 abstract sig Kind {} 
-one sig Read, Write, RMW, AssmEq extends Kind {} 
+one sig Read, Write, RMW, AssmEq, FenceSC extends Kind {} 
 
 // Actions 
 abstract sig Action {} 
@@ -43,10 +49,10 @@ pred locWF[ dom : set Action,
     lloc2 in dom -> lone Thr
 
     all a : dom | { 
-      // All reads and writes access global locations
+      // All reads, writes, RMW access global locations
       a in kind.(Read + Write + RMW)  iff  one a.gloc
 
-      // Reads and writes acces one local variable 
+      // Reads and writes access one local variable 
       a in kind.(Read + Write) & Intern  implies  { 
         one a.lloc1 and no a.lloc2
       } 
@@ -79,14 +85,8 @@ pred valWF[ dom : set Action,
         one a.rv
         one a.wv
       } 
-      // TODO: add case for no r/w?  
+      // Implicitly, all other actions have no rv / wv
     } 
-} 
-
-// No transitive edges in the relation 
-pred is_core [ r : Action -> Action ] { 
-  all a,b,c: Action | 
-    (a -> b) + (b -> c) in ^r  implies  not (a -> c) in r 
 } 
 
 // SB is acyclic 
@@ -200,13 +200,18 @@ pred HBdef [ dom : set Action,
              loc : Action -> Loc, 
              wv, rv : Action -> Val, 
              hb, sb, mo, rf : Action -> Action ] {
-  let aact = (dom <: loc).Atomic | 
-  let sw = rf & (aact -> aact) | 
-  hb = ^(sw + sb)
+  // sw (sync-with) is rf projected to atomic locations
+  let aact = dom & loc.Atomic, 
+      sw = rf & (aact -> aact) | 
+
+  // sc is mo projected to SC fences
+  let sc = mo & (kind.FenceSC -> kind.FenceSC) | 
+
+  hb = ^(sw + sb + sc)
 } 
 
 // Coherence order is respected
-// Note: this also covers the AtomRMW rule. 
+// Note: this version of the axiom also covers the AtomRMW rule. 
 pred CoWR [ dom : set Action, kind : Action -> Kind,
             loc : Action -> Loc, wv, rv : Action -> Val, 
             hb, sb, mo, rf : Action -> Action ] {
@@ -226,6 +231,9 @@ pred MOwf [ dom : set Action, kind : Action -> Kind,
   all disj w1, w2 : kind.(Write + RMW) | 
      (w1 -> w2) in mo + ~mo iff 
        (w1.loc = w2.loc) and w1 + w2 in (dom <: loc.Atomic)
+
+  // total mo on SC fences 
+  all disj f1, f2 : kind.FenceSC | (f1 -> f2) in mo + ~mo
 } 
  
 
