@@ -36,7 +36,7 @@ let main argv =
         let filen = argres.GetResult (<@ File @>) 
         match parseFile filen (parseOptScript fg) with 
         | Success(result,_,_) -> 
-            // printfn "Parse:\n %A" result 
+            // eprintfn "Parse:\n %A" result 
             let res = dispOptPredRelat depth filen result 
             for l in res do printfn "%s" l
             0
