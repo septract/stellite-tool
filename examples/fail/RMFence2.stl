@@ -1,0 +1,15 @@
+/** RMFence2 **/
+
+global x; 
+local l; 
+
+/** Optimised **/
+
+fenceSC; 
+write(x,l); 
+
+/** Unoptimised **/ 
+
+write(x,l); 
+fenceSC; 
+
