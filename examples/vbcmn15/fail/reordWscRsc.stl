@@ -1,0 +1,17 @@
+/** reordWscRsc **/
+global x y; 
+local l m; 
+
+/** Optimised **/ 
+write(x,l); 
+fenceSC; 
+read(y,m); 
+fenceSC; 
+
+/** Unoptimised **/ 
+read(y,m); 
+fenceSC; 
+write(x,l); 
+fenceSC; 
+
+

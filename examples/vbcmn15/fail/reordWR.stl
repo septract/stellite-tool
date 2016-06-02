@@ -1,0 +1,11 @@
+/** reordRR **/
+global x y; 
+local l m; 
+
+/** Optimised **/ 
+write(x,l); 
+read(y,m); 
+
+/** Unoptimised **/ 
+read(y,m); 
+write(x,l); 
