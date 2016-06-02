@@ -1,6 +1,6 @@
 /** reordWscR **/
-global x y; 
-local l m; 
+global x,y; 
+local l,m; 
 
 /** Optimised **/ 
 write(x,l); 

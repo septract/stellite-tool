@@ -1,6 +1,6 @@
 /** reordRWsc **/
-global x y; 
-local l m; 
+global x,y; 
+local l,m; 
 
 /** Optimised **/ 
 read(x,l); 
