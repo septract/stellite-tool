@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 for file in $(find ./examples/{"",vbcmn15/}{pass,fail} -iname '*.stl' | sort);
 do
