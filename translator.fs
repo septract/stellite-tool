@@ -170,22 +170,23 @@ let dispSimpPredRelat ((name, cmds) : string * List<Command>) : List<string> =
     let acts = (List.filter isAct) cmds in
     let assms = (List.filter isAssm) cmds in 
     let fences = (List.filter isFence) cmds in 
+    let allops = acts @ assms @ fences in 
       [ "pred " + name ] @
       [ "         [ dom : set Action, kind : Action -> Kind," ] @
       [ "           gloc : Action -> Glob, lloc1, lloc2 : Action -> Thr, " ] @
       [ "           sb : Action -> Action, " + (dispGlobDecl cmds |> intersperse ", ") + " : Glob, " 
                + (dispThrDecl cmds |> intersperse ", ") + " : Thr ] { "] @
       [ "  sb in (dom -> dom)" ] @ 
-      (if (List.length (acts @ assms @ fences) > 0) then 
-        [ "  some disj " + (List.map actName (acts @ assms @ fences) |> intersperse ", " ) + " : Action | "]
+      (if (List.length allops > 0) then 
+        [ "  some disj " + (List.map actName allops |> intersperse ", ") + " : Action | "]
       else []) @ 
       [ "  { "] @ 
-      [ "    dom = " + (List.fold (fun c a -> (actName a) + " + " + c) "" (acts @ assms @ fences) ) + "Call + Ret" ] @ 
-      [ "    (Call -> Ret)" + (List.map actName acts |> seqDefn) + " in sb" ] @ 
+      [ "    dom = " + (List.fold (fun c a -> (actName a) + " + " + c) "" allops) + "Call + Ret" ] @ 
+      [ "    (Call -> Ret)" + (List.map actName allops |> seqDefn) + " in sb" ] @ 
       (List.map (fun c -> "    " + (actName c) + ".gloc = " + (getActionGloc c)) acts) @ 
       (List.map (fun c -> "    " + (actName c) + ".lloc1 = " + (getActionlloc1 c)) (acts @ assms)) @ 
       (List.map (fun c -> "    " + (actName c) + ".lloc2 = " + (getActionlloc2 c)) assms) @ 
-      (List.map (fun c -> "    " + (actName c) + " in kind." + (actKind c)) (acts @ assms @ fences)) @ 
+      (List.map (fun c -> "    " + (actName c) + " in kind." + (actKind c)) allops) @ 
       //(List.map ((+) "    ") (genEqs cmds)) @ 
       [ "  }"] @  
       [ "}"] 
