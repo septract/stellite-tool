@@ -1,6 +1,6 @@
 #!/bin/sh
 
-for file in $(find ./examples/{pass,fail} -iname '*.stl' | sort);
+for file in $(find ./examples/{"",vbcmn15/}{pass,fail} -iname '*.stl' | sort);
 do
   # printf "Stellite> $file... "
   name=`basename $file .stl`
@@ -9,7 +9,7 @@ do
 
   # Run the test. 
   STARTTIME=$(date +%s)
-  ./runtest.sh $file > $TMPFILE || exit 1 
+  ./runtest.sh ${1-7} $file > $TMPFILE || exit 1 
   ENDTIME=$(date +%s)
 
   # Check the outcome

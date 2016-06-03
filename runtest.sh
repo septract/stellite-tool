@@ -1,21 +1,21 @@
 #!/bin/sh
 
-if [ $# != 1 ];
+if [ $# != 2 ];
 then
-	echo "usage: $0 FILE"
+	echo "usage: $0 DEPTH FILE"
 	exit 1
 fi
 
-if [ ${1: -4} != ".stl" ]
+if [ ${2: -4} != ".stl" ]
 then 
-    echo "Bad input filename: $1 - should end with .stl" 
+    echo "Bad input filename: $2 - should end with .stl" 
     exit 1
 fi 
 
-outfile="./alloy/gen/$(basename $1 .stl).als"
-./gentest.sh $1 $outfile || exit 1 
+outfile="./alloy/gen/$(basename $2 .stl).als"
+./gentest.sh $1 $2 $outfile || exit 1 
 
-java -Xmx2048m -cp ./alloy-mod.jar \
+java -Xmx4096m -cp ./alloy-mod.jar \
       edu.mit.csail.sdg.alloy4whole.ExampleUsingTheCompiler \
       $outfile  
 
