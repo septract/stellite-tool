@@ -1,10 +1,10 @@
-#!/bin/sh
+#!/bin/bash
 
 for file in $(find ./examples/{"",vbcmn15/}{pass,fail} -iname '*.stl' | sort);
 do
   # printf "Stellite> $file... "
-  name=`basename $file .stl`
-  TMPFILE=`mktemp /tmp/${name}.XXXXXX` || \
+  name=$(basename $file .stl)
+  TMPFILE=$(mktemp /tmp/${name}.XXXXXX) || \
       { echo "Couldn't create temporary file!">&2; exit 1; } 
 
   # Run the test. 
