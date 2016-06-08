@@ -26,3 +26,11 @@ https://www.xamarin.com/studio
 - run Stellite with: 
   > `$ mono bin/Debug/stellite-tool.exe sample_opt.stl`
 
+
+# Running on a server
+
+- Enter a shell by calling `$ screen` 
+
+- Detach with CTRL-a CTRL-d
+
+- To restore, call `$ screen -r`
