@@ -12,13 +12,13 @@ do
 
   # Run the test. 
   STARTTIME=$(date +%s)
-  timeout --foreground $TIMEOUT ./runtest.sh ${1-7} $file > $TMPFILE || exit 1
+  timeout --foreground $TIMEOUT ./runtest.sh ${1-7} $file > $TMPFILE 
   CMDRES=$?
   ENDTIME=$(date +%s)
 
   # Check the outcome
   if [ $CMDRES -eq 124 ]; then 
-    printf "Timed out\n"; 
+    printf "Timed out ($((TIMEOUT)) secs)\n"; 
   elif grep -q "OUTCOME" $TMPFILE; then 
     printf "Pass";  
     printf " ($(($ENDTIME - $STARTTIME)) secs)\n"
