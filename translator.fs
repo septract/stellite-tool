@@ -167,10 +167,10 @@ let dispOptPredHO ((name,decl,lhs,rhs) : string * List<Command> * List<Command> 
  *********************************************************************) 
 
 let dispSimpPredRelat ((name, cmds) : string * List<Command>) : List<string> =
-    let acts = (List.filter isAct) cmds in
-    let assms = (List.filter isAssm) cmds in 
-    let fences = (List.filter isFence) cmds in 
-    let allops = acts @ assms @ fences in 
+    let acts = List.filter isAct cmds in
+    let assms = List.filter isAssm cmds in 
+    let fences = List.filter isFence cmds in 
+    let allops = List.filter (fun x -> isAct x || isAssm x || isFence x) cmds in 
       [ "pred " + name ] @
       [ "         [ dom : set Action, kind : Action -> Kind," ] @
       [ "           gloc : Action -> Glob, lloc1, lloc2 : Action -> Thr, " ] @
