@@ -12,7 +12,7 @@ do
 
   # Run the test. 
   STARTTIME=$(date +%s)
-  timeout --foreground $TIMEOUT ./runtest.sh ${1-7} $file > $TMPFILE 
+  timeout $TIMEOUT ./runtest.sh ${1-7} $file > $TMPFILE 
   CMDRES=$?
   ENDTIME=$(date +%s)
 
