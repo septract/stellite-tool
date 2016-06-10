@@ -46,30 +46,21 @@ pred histIncl() {
       is_core[sb'] 
   } | 
   some wv', rv' : Action -> Val, 
-       mo', rf', hb' : dom' -> dom' | { 
-   // TODO: fix this for non-atomics 
-   //let //sc' = mo' & (kind.FenceSC -> kind.FenceSC),  
-   //    //hb' = ^(sb' + rf' + sc'), 
-   //    wv' = wvi + (Extern <: wv), 
-   //    rv' = rvi + (Extern <: rv) | 
-  { 
-      (Extern <: wv) = (Extern <: wv') 
-      (Extern <: rv) = (Extern <: rv') 
+       hb', mo', rf' : dom' -> dom' | { 
+    (Extern <: wv) = (Extern <: wv') 
+    (Extern <: rv) = (Extern <: rv') 
 
-      // Enforce validity for RHS 
-      valid[dom', kind', gloc', lloc1', lloc2', callmap, retmap, wv', rv', ^hb', ^sb', ^mo', rf']
+    // Enforce validity for RHS 
+    valid[dom', kind', gloc', lloc1', lloc2', callmap, retmap, wv', rv', ^hb', ^sb', ^mo', rf']
 
-      // Atomics disabled 
-      //DRF[dom', kind', loc', wv', rv', ^hb', sb', mo', rf']
+    // Nonatomics disabled 
+    //DRF[dom', kind', loc', wv', rv', ^hb', sb', mo', rf']
  
-      // Histories are related
-      getguar[dom', ^hb'] in guar 
-      getdeny[dom', kind', gloc', wv', rv', ^hb', ^sb', mo', rf'] in deny 
-    } 
+    // Histories are related
+    getguar[dom', ^hb'] in guar 
+    getdeny[dom', kind', gloc', wv', rv', ^hb', ^sb', mo', rf'] in deny 
   }
 } 
-
-// check { histIncl } for 7
 
 
 /****************************************************/ 
@@ -77,62 +68,64 @@ pred histIncl() {
 /* Generate LHS / RHS of the inclusion.             */ 
 /****************************************************/ 
 
-// pred histInclRun() { 
-//   some dom, dom' : set Action, kind, kind' : Action -> Kind,
-//        gloc, gloc', lloc, lloc' : Action -> Loc, 
-//        callmap, retmap : Thr -> Val, 
-//        wv, rv : Action -> Val, 
-//        sb, sb' : Action -> Action,
-//        hb, mo, rf, guar, deny : Action -> Action,
-//        wvi, rvi : Intern -> Val, 
-//        mo', rf' : Action -> Action | { 
-//    let hb' = ^(sb' + rf'), 
-//        wv' = wvi + (Extern <: wv), 
-//        rv' = rvi + (Extern <: rv) | { 
-//       // Optimisation definition 
-//       optPred[dom, dom', kind, kind', gloc, gloc', lloc, lloc', ^sb, ^sb'] 
-// 
-//       valid[dom, kind, gloc, lloc, callmap, retmap, wv, rv, ^hb, ^sb, mo, rf] 
-//      
-//       // Nonatomics disabled 
-//       // DRF[dom, kind, loc, wv, rv, ^hb, ^sb, mo, rf]
-// 
-//       guar = getguar[dom, ^hb] 
-//       deny = getdeny[dom, kind, gloc, wv, rv, ^hb, ^sb, mo, rf] 
-//  
-//       // Cut irrelevant executions. 
-//       cutR[dom, kind, gloc, wv, rv, ^hb, ^sb, mo, rf] 
-//       cutW[dom, kind, gloc, wv, rv, ^hb, ^sb, mo, rf] 
-// 
-//       // Sanity conditions 
-//       Action = dom + dom' 
-//       Loc = dom.(lloc + gloc) + dom'.(lloc' + gloc') 
-// 
-//       // Make the relations nicer to display 
-//       is_core[hb] 
-//       is_core[sb] 
-//       is_core[sb'] 
-// 
-//       // one Call & (dom + dom') 
-//       // one Ret & (dom + dom') 
-//       
-//       // // Pre-execution structure
-//       // preexecWF[dom, kind, gloc, lloc, sb] 
-//       // preexecWF[dom', kind', gloc', lloc', ^sb'] 
-// 
-//       Extern & dom = Extern & dom' 
-//       Extern <: gloc = Extern <: gloc' 
-//       Extern <: kind = Extern <: kind' 
-//       valid[dom', kind', gloc', lloc', callmap, retmap, wv', rv', ^hb', ^sb', mo', rf']
-// 
-//       // Atomics disabled 
-//       //DRF[dom', kind', loc', wv', rv', ^hb', ^sb', mo', rf']
-//  
-//       getguar[dom', ^hb'] in guar 
-//       getdeny[dom', kind', gloc', wv', rv', ^hb', ^sb', mo', rf'] in deny 
-//     } 
-//   }
-// } 
+pred histInclRun() { 
+  some dom, dom' : set Action, 
+      kind, kind' : Action -> Kind,
+      gloc, gloc' : Action -> Glob,
+      lloc1, lloc1' : Intern -> Thr, 
+      lloc2, lloc2' : Intern -> Thr, 
+      callmap, retmap : Thr -> Val, 
+      wv, rv : Action -> Val, 
+      sb, sb' : Action -> Action,
+      hb, mo, rf, guar, deny : Action -> Action, 
+      wv', rv' : Action -> Val, 
+      hb', mo', rf' : dom' -> dom' | { 
+
+    // Optimisation definition 
+    optPred[dom, dom', kind, kind', gloc, gloc', lloc1, lloc1', lloc2, lloc2', ^sb, ^sb'] 
+
+    // Enforce validity for LHS
+    valid[dom, kind, gloc, lloc1, lloc2, callmap, retmap, wv, rv, ^hb, ^sb, mo, rf] 
+
+    // Interfaces are the same
+    Extern & dom = Extern & dom' 
+    Extern <: gloc = Extern <: gloc' 
+    Extern <: kind = Extern <: kind' 
+   
+    // Nonatomics disabled 
+    // DRF[dom, kind, loc, wv, rv, ^hb, ^sb, mo, rf]
+
+    guar = getguar[dom, ^hb] 
+    deny = getdeny[dom, kind, gloc, wv, rv, ^hb, ^sb, ^mo, rf] 
+ 
+    // Cut irrelevant executions. 
+    cutR[dom, kind, gloc, wv, rv, ^hb, ^sb, ^mo, rf] 
+    cutW[dom, kind, gloc, wv, rv, ^hb, ^sb, ^mo, rf] 
+    cutF[dom, kind, ^hb, ^sb, ^mo, rf] 
+
+    // Sanity conditions 
+    Action = dom + dom' 
+
+    // Make the relations nicer to display 
+    is_core[hb] 
+    is_core[sb] 
+    is_core[sb'] 
+
+    (Extern <: wv) = (Extern <: wv') 
+    (Extern <: rv) = (Extern <: rv') 
+
+    // Enforce validity for RHS 
+    valid[dom', kind', gloc', lloc1', lloc2', callmap, retmap, wv', rv', ^hb', ^sb', ^mo', rf']
+
+    // Nonatomics disabled 
+    //DRF[dom', kind', loc', wv', rv', ^hb', sb', mo', rf']
+ 
+    // Histories are related
+    getguar[dom', ^hb'] in guar 
+    getdeny[dom', kind', gloc', wv', rv', ^hb', ^sb', mo', rf'] in deny 
+    
+  }
+} 
 
 // pred histInclRunLHS() { 
 //   some dom : set Action, 
