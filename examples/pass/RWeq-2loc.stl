@@ -1,0 +1,11 @@
+/** RWeq-2loc **/
+global x, y; 
+local l, m; 
+
+/** Optimised **/ 
+read(x,l); 
+write(y,m);
+
+/** Unoptimised **/ 
+read(x,l); 
+write(y,m);
