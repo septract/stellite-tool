@@ -1,8 +1,9 @@
 #!/bin/bash
 
-TIMEOUT=3600
+TIMEOUT=600 
 
-for file in $(find ./examples/{"",vbcmn15/}{pass,fail} -iname '*.stl' | sort);
+#for file in $(find ./examples/{"",vbcmn15/}{pass,fail} -iname '*.stl' | sort);
+for file in $(find ./examples/{pass,fail} -iname '*.stl' | sort);
 do
   name=$(basename $file .stl)
   TMPFILE=$(mktemp /tmp/${name}.XXXXXX) || \

@@ -1,0 +1,15 @@
+/** RMFence2 **/
+
+global x; 
+local l; 
+
+/** Optimised **/
+
+read(x,l); 
+fenceSC; 
+
+/** Unoptimised **/ 
+
+fenceSC; 
+read(x,l); 
+
