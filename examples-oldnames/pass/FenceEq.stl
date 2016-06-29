@@ -1,9 +1,0 @@
-/** FenceEq **/ 
-global x; 
-local l; 
-
-/** Optimised **/ 
-fenceSC; 
-
-/** Unoptimised **/ 
-fenceSC; 
