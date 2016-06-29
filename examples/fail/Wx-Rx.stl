@@ -1,0 +1,12 @@
+/** WRswap **/
+
+global x; 
+local l; 
+
+/** Optimised **/ 
+
+read(x,l); 
+
+/** Unoptimised **/ 
+
+write(x,l); 

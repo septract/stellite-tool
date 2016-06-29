@@ -1,0 +1,10 @@
+/** WWelim **/
+global x; 
+local l,m; 
+
+/** Optimised **/ 
+write(x,l); 
+
+/** Unoptimised **/ 
+write(x,m); 
+write(x,l); 

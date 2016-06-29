@@ -1,0 +1,9 @@
+/** WWeq *//
+global x; 
+local l; 
+
+/** Optimised **/ 
+write(x,l); 
+
+/** Unoptimised **/ 
+write(x,l); 

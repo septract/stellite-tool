@@ -186,7 +186,6 @@ pred RFwf [ dom : set Action,
     (rf.r).loc in r.loc 
 
     // Value taken from origin write
-    // TODO: decide whether to allow assignments to Init
     some rf.r implies r.rv = (rf.r).wv // and not r.rval in Init
     no rf.r implies r.rv in Init 
 

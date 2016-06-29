@@ -1,0 +1,8 @@
+/** Relim **/
+global x; 
+local l; 
+
+/** Optimised **/ 
+
+/** Unoptimised **/ 
+read(x,l); 
