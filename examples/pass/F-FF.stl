@@ -1,0 +1,10 @@
+/** Fence2Elim **/ 
+global x; 
+local l; 
+
+/** Optimised **/ 
+fenceSC; 
+fenceSC; 
+
+/** Unoptimised **/ 
+fenceSC; 

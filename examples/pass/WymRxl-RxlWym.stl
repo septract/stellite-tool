@@ -3,10 +3,8 @@ global x,y;
 local l, m; 
 
 /** Optimised **/ 
-read(x,l);  
-write(y,m);  
+read(x,l);  write(y,m);  
 
 /** Unoptimised **/ 
-write(y,m); 
-read(x,l); 
+write(y,m); read(x,l); 
 

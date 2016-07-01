@@ -1,0 +1,10 @@
+/** RRintro **/
+global x,y; 
+local l; 
+
+/** Optimised **/ 
+read(y,l); 
+read(x,l); 
+
+/** Unoptimised **/ 
+read(x,l); 
