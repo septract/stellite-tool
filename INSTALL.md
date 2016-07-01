@@ -2,12 +2,16 @@
 
 (Instructions valid on OSX as of 3-4-16) 
 
-## OPTION #1 (IDE) 
+There are two options for building Stellite.  In either case the Stellite
+binary will be `stellite-tool/bin/Debug/stellite.exe`. For instructions on 
+running benchmarks, see `README.md`.
+
+## BUILD OPTION #1 (IDE) 
 
 - Install Xamarin studio, which will install packages and automate the build process for you:
 https://www.xamarin.com/studio
 
-## OPTION #2 (command line) 
+## BUILD OPTION #2 (command line) 
 
 - Download and install: 
   * mono from http://www.mono-project.com/download/
@@ -20,14 +24,9 @@ https://www.xamarin.com/studio
 
 - In stellite-tool, build by running 
   > `$ xbuild`
- 
-- The Stellite binary will be `stellite-tool/bin/Debug/stellite.exe`
-
-- run Stellite with: 
-  > `$ mono bin/Debug/stellite-tool.exe sample_opt.stl`
 
 
-# Running on a server
+# Running Stellite tests in headless mode on a server
 
 - Enter a shell by calling `$ screen` 
 
