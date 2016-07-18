@@ -28,6 +28,7 @@ type Command =
     | ValDecl of List<Ident>
     | Write of int * (Ident * Ident)
     | Read of int * (Ident * Ident)
+    | ReadN of int * Ident 
     | RMW of int * (Ident * Ident * Ident * Ident)
 //    | Choice of Command * Command 
 //    | Cond of BExp * List<Command>
@@ -76,6 +77,13 @@ let parseRead fg =
             (tuple2 parseIdent (wscomma >>. parseIdent))
     |>> fun (a,b) -> Read (getFresh fg, (a,b)) 
 
+/// Parse a readN action
+let parseReadN fg = 
+    between (skipString "readN(" >>. ws) 
+            parseEndBrac 
+            parseIdent
+    |>> fun a -> ReadN (getFresh fg, a) 
+
 /// Parse a RMW action 
 let parseRMW fg = 
     between (skipString "RMW(" >>. ws) 
@@ -108,6 +116,7 @@ let parseDecl fg = (choice[ parseThrDecl
 
 let parseCmd fg = (choice[ parseWrite fg
                            parseRead fg 
+                           parseReadN fg 
                            //(parseRMW fg) 
                            parseAssume fg 
                            parseFenceSC fg]) .>> (ws .>> pstring ";" .>> ws) 

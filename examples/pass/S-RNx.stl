@@ -1,0 +1,8 @@
+/** S-RNx **/
+global x; 
+local l; 
+
+/** Optimised **/ 
+readN(x); 
+
+/** Unoptimised **/ 

@@ -59,7 +59,7 @@ fun CoWR_d [ dom : set Action,
   { u : (Extern + Ret), v : (Extern + Call) |
     disj [u,v] and 
     some w1, w2 : kind.(Write + RMW) & (dom <: loc.Atomic), 
-         r : kind.Read & (dom <: loc.Atomic) | { 
+         r : kind.(Read + ReadN + RMW) & (dom <: loc.Atomic) | { 
       disj [w1, w2, r] 
       (w1 -> r) in rf 
       (w1 -> w2) in mo
@@ -92,7 +92,7 @@ fun Init_d [ dom : set Action,
                 : (Action -> Action) { 
   { u : (Extern + Ret), v : (Extern + Call) | 
     some w : dom & kind.(Write + RMW) & gloc.Atomic, 
-         r : dom & kind.Read & gloc.Atomic | { 
+         r : dom & kind.(Read + ReadN + RMW) & gloc.Atomic | { 
       no rf.r  // Read the init value 
       (w -> u) in iden + hb
       (v -> r) in iden + hb
@@ -133,7 +133,7 @@ pred cutR[ dom : set Action,
            loc : Action -> Loc, 
            wv, rv : Action -> Val, 
            hb, sb, mo, rf : Action -> Action ] { 
-  all r : Extern & kind.Read & loc.Atomic & dom | 
+  all r : Extern & kind.(Read + ReadN) & loc.Atomic & dom | 
   some w : Intern & dom | { 
     (w -> r) in rf
     no (w.rf & Extern) - r

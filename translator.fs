@@ -44,8 +44,12 @@ let dispAllDecl cmds =
     //x |> List.concat |> intersperse ", "
 
 /// Check whether a command is an action
-let isAct = function | Write _ | Read _ | RMW _ -> true
-                     | _ -> false 
+let hasGloc = function | Write _ | Read _ | ReadN _ | RMW _ -> true
+                       | _ -> false 
+
+/// Check whether a command is an action
+let hasLloc = function | Write _ | Read _ | RMW _ -> true
+                       | _ -> false 
 
 /// Check whether a command is an assumeEq
 let isAssm = function | AssumeEq _ -> true
@@ -57,13 +61,13 @@ let isFence = function | FenceSC _ -> true
 /// Get the identifier for an action 
 let getActionId a = 
     match a with 
-    | Write (i,_) | Read (i,_) | RMW (i,_) | AssumeEq (i,_) | FenceSC i -> i
+    | Write (i,_) | Read (i,_) | ReadN (i,_) | RMW (i,_) | AssumeEq (i,_) | FenceSC i -> i
     | _ -> failwith "getActionId: not a valid parameter!" 
 
 /// Get the variable for an action 
 let getActionGloc a = 
     match a with 
-    | Write (_,(x,_)) | Read (_,(x,_)) -> x
+    | Write (_,(x,_)) | Read (_,(x,_)) | ReadN (_,x) -> x
     //| RMW (_,(x,_,_)) -> x
     | _ -> failwith "getActionGloc: not a valid parameter!" 
 
@@ -87,7 +91,8 @@ let actName c = "op" + string (getActionId c)
 let actKind c = 
     match c with 
     | Write _ -> "Write"
-    | Read _ -> "Read" 
+    | Read _ -> "Read"
+    | ReadN _ -> "ReadN" 
     //| RMW _ -> "RMW" 
     | AssumeEq _ -> "AssmEq" 
     | FenceSC _ -> "FenceSC" 
@@ -167,10 +172,11 @@ let dispOptPredHO ((name,decl,lhs,rhs) : string * List<Command> * List<Command> 
  *********************************************************************) 
 
 let dispSimpPredRelat ((name, cmds) : string * List<Command>) : List<string> =
-    let acts = List.filter isAct cmds in
-    let assms = List.filter isAssm cmds in 
+    let glocacts = List.filter hasGloc cmds in
+    let lloc1acts = List.filter hasLloc cmds in
+    let lloc2acts = List.filter isAssm cmds in 
     let fences = List.filter isFence cmds in 
-    let allops = List.filter (fun x -> isAct x || isAssm x || isFence x) cmds in 
+    let allops = List.filter (fun x -> hasGloc x || isAssm x || isFence x) cmds in 
       [ "pred " + name ] @
       [ "         [ dom : set Action, kind : Action -> Kind," ] @
       [ "           gloc : Action -> Glob, lloc1, lloc2 : Action -> Thr, " ] @
@@ -183,11 +189,10 @@ let dispSimpPredRelat ((name, cmds) : string * List<Command>) : List<string> =
       [ "  { "] @ 
       [ "    dom = " + (List.fold (fun c a -> (actName a) + " + " + c) "" allops) + "Call + Ret" ] @ 
       [ "    (Call -> Ret)" + (List.map actName allops |> seqDefn) + " in sb" ] @ 
-      (List.map (fun c -> "    " + (actName c) + ".gloc = " + (getActionGloc c)) acts) @ 
-      (List.map (fun c -> "    " + (actName c) + ".lloc1 = " + (getActionlloc1 c)) (acts @ assms)) @ 
-      (List.map (fun c -> "    " + (actName c) + ".lloc2 = " + (getActionlloc2 c)) assms) @ 
+      (List.map (fun c -> "    " + (actName c) + ".gloc = " + (getActionGloc c)) glocacts) @ 
+      (List.map (fun c -> "    " + (actName c) + ".lloc1 = " + (getActionlloc1 c)) lloc1acts) @ 
+      (List.map (fun c -> "    " + (actName c) + ".lloc2 = " + (getActionlloc2 c)) lloc2acts) @ 
       (List.map (fun c -> "    " + (actName c) + " in kind." + (actKind c)) allops) @ 
-      //(List.map ((+) "    ") (genEqs cmds)) @ 
       [ "  }"] @  
       [ "}"] 
 

@@ -30,7 +30,7 @@ one sig Init in Val {} // Magic initialisation value
 
 // Actions kinds corresponding to different memory actions
 abstract sig Kind {} 
-one sig Read, Write, RMW, AssmEq, FenceSC extends Kind {} 
+one sig Read, ReadN, Write, RMW, AssmEq, FenceSC extends Kind {} 
 
 // Actions 
 abstract sig Action {} 
@@ -45,15 +45,22 @@ pred locWF[ dom : set Action,
     no (Call + Ret).kind
 
     gloc in (dom - (Call + Ret)) -> lone Glob
-    lloc1 in dom -> lone Thr
-    lloc2 in dom -> lone Thr
+
+    // local variables are only recorded for internal actions 
+    lloc1 in (dom & Intern) -> lone Thr
+    lloc2 in (dom & Intern) -> lone Thr
 
     all a : dom | { 
       // All reads, writes, RMW access global locations
       a in kind.(Read + Write + RMW)  iff  one a.gloc
 
-      // Reads and writes access one local variable 
+      // Reads and writes access zero or one local variables
       a in kind.(Read + Write) & Intern  implies  { 
+        one a.lloc1 and one a.lloc2
+      } 
+
+      // Reads and writes access zero or one local variables
+      a in kind.ReadN & Intern  implies  { 
         one a.lloc1 and no a.lloc2
       } 
 
@@ -82,7 +89,7 @@ pred valWF[ dom : set Action,
         one a.wv
         no a.rv
       } 
-      kind[a] in Read iff { 
+      kind[a] in (Read + ReadN) iff { 
         one a.rv
         no a.wv
       } 
@@ -176,12 +183,12 @@ pred RFwf [ dom : set Action,
             wv, rv : Action -> Val, 
             hb, sb, mo, rf : Action -> Action ] { 
   // Read from at most one write 
-  rf in kind.(Write + RMW) lone -> kind.(Read + RMW) 
+  rf in kind.(Write + RMW) lone -> kind.(Read + ReadN + RMW) 
 
   // Irreflexive 
   no iden & rf 
 
-  all r : dom & kind.(Read + RMW) | { 
+  all r : dom & kind.(Read + ReadN + RMW) | { 
     // Read from the same location written 
     (rf.r).loc in r.loc 
 
@@ -220,7 +227,7 @@ pred HBdef [ dom : set Action,
 pred CoWR [ dom : set Action, kind : Action -> Kind,
             loc : Action -> Loc, wv, rv : Action -> Val, 
             hb, sb, mo, rf : Action -> Action ] {
-  all r : dom & kind.(Read + RMW), w1 : rf.r | 
+  all r : dom & kind.(Read + ReadN + RMW), w1 : rf.r | 
     not { (w1 -> r) in mo.(hb + mo) } 
 } 
 
@@ -262,7 +269,7 @@ pred RFNonAtomic [ dom : set Action,
                    loc : Action -> Loc, 
                    wv, rv : Action -> Val, 
                    hb, sb, mo, rf : Action -> Action ] { 
-  let NA_reads = (dom <: loc).NonAtomic & kind.Read | 
+  let NA_reads = (dom <: loc).NonAtomic & kind.(Read + ReadN) | 
      (rf :> NA_reads) in hb 
 } 
 
@@ -305,7 +312,7 @@ pred DRF [ dom : set Action,
   all disj w, a : (dom <: loc).l | 
     (w in kind.Write) 
     and 
-    (a in kind.(Write + Read)) 
+    (a in kind.(Write + Read + ReadN)) 
     implies 
     (w -> a) in (hb + ~hb) 
 } 
