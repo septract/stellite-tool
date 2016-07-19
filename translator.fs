@@ -100,28 +100,28 @@ let actKind c =
 
 /// Generate equality assertions for read-write and read-value pairs. 
 /// These represent the effect of local variables in the semantics
-let genEqRW id id2 = "op" + string id + ".rval = op" + string id2 + ".wval" 
-let genEqRV id vname = "op" + string id + ".rval = " + vname
+//let genEqRW id id2 = "op" + string id + ".rval = op" + string id2 + ".wval" 
+//let genEqRV id vname = "op" + string id + ".rval = " + vname
 
-/// Generate equality assertions in a program suffix. This stops propagating when 
-/// we reach a read that assigns to the same local variable. 
-let rec genEqLoc i l cmds = 
-    match cmds with 
-    | Write (i',(_,l')) :: cmds' when l = l' -> [genEqRW i i'] @ (genEqLoc i l cmds') 
-    //| RMW (i', (_,l',l'',_)) :: cmds' -> 
-    //  [genEqRMW i i'] @ (genEqLoc i l cmds') 
-    // | AssumeEq (l',v') :: cmds' when l' = l -> [genEqRV i v'] @ (genEqLoc i l cmds') 
-    | Read (_, (_,l')) :: cmds' when l = l' -> [] 
-    | _ :: cmds' -> genEqLoc i l cmds'  
-    | [] -> [] 
+///// Generate equality assertions in a program suffix. This stops propagating when 
+///// we reach a read that assigns to the same local variable. 
+//let rec genEqLoc i l cmds = 
+//    match cmds with 
+//    | Write (i',(_,l')) :: cmds' when l = l' -> [genEqRW i i'] @ (genEqLoc i l cmds') 
+//    //| RMW (i', (_,l',l'',_)) :: cmds' -> 
+//    //  [genEqRMW i i'] @ (genEqLoc i l cmds') 
+//    // | AssumeEq (l',v') :: cmds' when l' = l -> [genEqRV i v'] @ (genEqLoc i l cmds') 
+//    | Read (_, (_,l')) :: cmds' when l = l' -> [] 
+//    | _ :: cmds' -> genEqLoc i l cmds'  
+//    | [] -> [] 
 
-/// Generate equality assertions arising from local variables. 
-let rec genEqs cmds = 
-    match cmds with 
-    | Read (i,(_,l)) :: cmds' | RMW (i,(_,_,_,l)) :: cmds' -> 
-        (genEqLoc i l cmds') @ (genEqs cmds') 
-    | c :: cmds' -> genEqs cmds'
-    | [] -> []  
+///// Generate equality assertions arising from local variables. 
+//let rec genEqs cmds = 
+//    match cmds with 
+//    | Read (i,(_,l)) :: cmds' | RMW (i,(_,_,_,l)) :: cmds' -> 
+//        (genEqLoc i l cmds') @ (genEqs cmds') 
+//    | c :: cmds' -> genEqs cmds'
+//    | [] -> []  
 
 /// Helper function to convert a sequence of names into an Alloy sequence definition. 
 let rec seqDefn names : string = 
