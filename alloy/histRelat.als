@@ -58,8 +58,9 @@ fun CoWR_d [ dom : set Action,
                 : (Action -> Action) { 
   { u : (Extern + Ret), v : (Extern + Call) |
     disj [u,v] and 
-    some w1, w2 : kind.(Write + RMW) & (dom <: loc.Atomic), 
-         r : kind.(Read + ReadN + RMW) & (dom <: loc.Atomic) | { 
+    some w1, w2 : dom & kind.(Write + RMW),  // & (dom <: loc.Atomic), 
+         r : dom & kind.(Read + ReadN + RMW) | // & (dom <: loc.Atomic) | 
+    { 
       disj [w1, w2, r] 
       (w1 -> r) in rf 
       (w1 -> w2) in mo
@@ -77,8 +78,8 @@ fun HBacyc_d [ dom : set Action,
                hb, sb, mo, rf : Action -> Action ] 
                  : (Action -> Action) { 
   { u : (Extern + Ret), v : (Extern + Call) | 
-    // disj [u,v] 
-    // and 
+    disj [u,v] 
+    and 
     (v -> u) in hb 
   } 
 } 
@@ -91,8 +92,12 @@ fun Init_d [ dom : set Action,
              hb, sb, mo, rf : Action -> Action ] 
                 : (Action -> Action) { 
   { u : (Extern + Ret), v : (Extern + Call) | 
-    some w : dom & kind.(Write + RMW) & gloc.Atomic, 
-         r : dom & kind.(Read + ReadN + RMW) & gloc.Atomic | { 
+    disj [u,v] 
+    and 
+    some w : dom & kind.(Write + RMW), // & gloc.Atomic, 
+         r : dom & kind.(Read + ReadN + RMW) | // & gloc.Atomic | { 
+    { 
+      disj [w,r] 
       no rf.r  // Read the init value 
       (w -> u) in iden + hb
       (v -> r) in iden + hb
@@ -133,7 +138,7 @@ pred cutR[ dom : set Action,
            loc : Action -> Loc, 
            wv, rv : Action -> Val, 
            hb, sb, mo, rf : Action -> Action ] { 
-  all r : Extern & kind.(Read + ReadN) & loc.Atomic & dom | 
+  all r : Extern & kind.(Read + ReadN) & dom |  // & loc.Atomic | 
   some w : Intern & dom | { 
     (w -> r) in rf
     no (w.rf & Extern) - r
@@ -155,8 +160,8 @@ pred cutW[ dom : set Action,
            loc : Action -> Loc, 
            wv, rv : Action -> Val, 
            hb, sb, mo, rf : Action -> Action ] { 
-  // pairs of actions w,w' have to be separated by a visible action in mo 
-  // otherwise they are cut. 
+  // pairs of non-visible actions w,w' have to be separated by a visible action
+  // in mo otherwise they are cut. 
   all disj w, w' : Extern & dom & kind.(Write + RMW) | { 
     {(w.loc = w'.loc) and (no (w + w') & vizAct[dom, rf])} 
        implies 

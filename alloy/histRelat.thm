@@ -12,22 +12,26 @@
    <type name="String"/>
    <type name="univ"/>
    <type name="c11Relat/Action"/>
+   <type name="c11Relat/AssmEq"/>
    <type name="c11Relat/Call"/>
    <type name="c11Relat/Extern"/>
+   <type name="c11Relat/FenceSC"/>
    <type name="c11Relat/Glob"/>
    <type name="c11Relat/Intern"/>
    <type name="c11Relat/Loc"/>
    <type name="c11Relat/Read"/>
+   <type name="c11Relat/ReadN"/>
    <type name="c11Relat/Ret"/>
-   <type name="c11Relat/Spesh"/>
+   <type name="c11Relat/RMW"/>
    <type name="c11Relat/Thr"/>
+   <type name="c11Relat/Val"/>
    <type name="c11Relat/Write"/>
    <type name="seq/Int"/>
-   <set name="$hist_run_dom" type="c11Relat/Action"/>
-   <set name="$hist_run_g" type="c11Relat/Glob"/>
-   <set name="$hist_run_t" type="c11Relat/Thr"/>
-   <set name="$read2_r1" type="c11Relat/Action"/>
-   <set name="$read2_r2" type="c11Relat/Action"/>
+   <set name="$histIncl_dom" type="c11Relat/Action"/>
+   <set name="$histIncl_dom&apos;" type="c11Relat/Action"/>
+   <set name="$optPred_l" type="c11Relat/Thr"/>
+   <set name="$optPred_x" type="c11Relat/Glob"/>
+   <set name="$optRHS_op0" type="c11Relat/Action"/>
    <set name="c11Relat/Atomic" type="c11Relat/Glob"/>
    <set name="c11Relat/Init" type="c11Relat/Val"/>
    <set name="c11Relat/NonAtomic" type="c11Relat/Glob"/>
@@ -36,16 +40,19 @@
 
 <node visible="no">
    <type name="c11Relat/Kind"/>
-   <type name="c11Relat/Val"/>
 </node>
 
+<edge attribute="no">
+   <relation name="$histIncl_sb"> <type name="c11Relat/Action"/> <type name="c11Relat/Action"/> </relation>
+   <relation name="$histIncl_sb&apos;"> <type name="c11Relat/Action"/> <type name="c11Relat/Action"/> </relation>
+</edge>
+
 <edge attribute="yes">
-   <relation name="$hist_run_callmap"> <type name="c11Relat/Thr"/> <type name="c11Relat/Val"/> </relation>
-   <relation name="$hist_run_gloc"> <type name="c11Relat/Action"/> <type name="c11Relat/Loc"/> </relation>
-   <relation name="$hist_run_kind"> <type name="c11Relat/Action"/> <type name="c11Relat/Kind"/> </relation>
-   <relation name="$hist_run_lloc"> <type name="c11Relat/Action"/> <type name="c11Relat/Loc"/> </relation>
-   <relation name="$hist_run_retmap"> <type name="c11Relat/Thr"/> <type name="c11Relat/Val"/> </relation>
-   <relation name="$hist_run_rv"> <type name="c11Relat/Action"/> <type name="c11Relat/Val"/> </relation>
+   <relation name="$histIncl_hb"> <type name="c11Relat/Action"/> <type name="c11Relat/Action"/> </relation>
+   <relation name="$histIncl_kind"> <type name="c11Relat/Action"/> <type name="c11Relat/Kind"/> </relation>
+   <relation name="$histIncl_kind&apos;"> <type name="c11Relat/Action"/> <type name="c11Relat/Kind"/> </relation>
+   <relation name="$histIncl_rv"> <type name="c11Relat/Action"/> <type name="c11Relat/Val"/> </relation>
+   <relation name="$histIncl_wv"> <type name="c11Relat/Action"/> <type name="c11Relat/Val"/> </relation>
 </edge>
 
 </view>

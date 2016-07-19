@@ -127,44 +127,43 @@ pred histInclRun() {
   }
 } 
 
-// pred histInclRunLHS() { 
-//   some dom : set Action, 
-//        kind : Action -> Kind,
-//        gloc, lloc1, lloc2 : Action -> Loc, 
-//        callmap, retmap : Thr -> Val, 
-//        wv, rv : Action -> Val, 
-//        sb : Action -> Action,
-//        hb, mo, rf, guar, deny : Action -> Action | { 
-//       // Optimisation definition 
-//       some x: Glob, l : Thr | { 
-//       optLHS[dom - Extern, kind, gloc, lloc1, lloc2, ^sb, x, l] 
-//       preexecWF[dom, kind, gloc, lloc1, lloc2, sb]  
-// 
-//       valid[dom, kind, gloc, lloc1, lloc2, callmap, retmap, wv, rv, ^hb, ^sb, mo, rf] 
-//      
-//       // Nonatomics disabled 
-//       // DRF[dom, kind, loc, wv, rv, ^hb, ^sb, mo, rf]
-// 
-//       guar = getguar[dom, ^hb] 
-//       deny = getdeny[dom, kind, gloc, wv, rv, ^hb, ^sb, mo, rf] 
-//  
-//       // Cut irrelevant executions. 
-//       cutR[dom, kind, gloc, wv, rv, ^hb, ^sb, mo, rf] 
-//       cutW[dom, kind, gloc, wv, rv, ^hb, ^sb, mo, rf] 
-// 
-//       // Sanity conditions 
-//       Action = dom 
-//       Loc = dom.(lloc1 + lloc2 + gloc) 
-// 
-//       // Make the relations nicer to display 
-//       is_core[hb] 
-//       is_core[sb] 
-//     } 
-//   }
-// } 
-// 
+/* 
+pred histInclRunLHS() { 
+  some dom : set Action, 
+       kind : Action -> Kind,
+       gloc, lloc1, lloc2 : Action -> Loc, 
+       callmap, retmap : Thr -> Val, 
+       wv, rv : Action -> Val, 
+       sb : Action -> Action,
+       hb, mo, rf, guar, deny : Action -> Action | { 
+      // Optimisation definition 
+      some x: Glob, l : Thr | { 
+      optLHS[dom - Extern, kind, gloc, lloc1, lloc2, ^sb, x, l] 
+      preexecWF[dom, kind, gloc, lloc1, lloc2, sb]  
 
-//run { histInclRun } for 4
-//run { histInclRunLHS } for 6 but exactly 1 Call, 1 Ret
+      valid[dom, kind, gloc, lloc1, lloc2, callmap, retmap, wv, rv, ^hb, ^sb, mo, rf] 
+     
+      // Nonatomics disabled 
+      // DRF[dom, kind, loc, wv, rv, ^hb, ^sb, mo, rf]
 
+      guar = getguar[dom, ^hb] 
+      deny = getdeny[dom, kind, gloc, wv, rv, ^hb, ^sb, mo, rf] 
+ 
+      // Cut irrelevant executions. 
+      cutR[dom, kind, gloc, wv, rv, ^hb, ^sb, mo, rf] 
+      cutW[dom, kind, gloc, wv, rv, ^hb, ^sb, mo, rf] 
 
+      // Sanity conditions 
+      Action = dom 
+      Loc = dom.(lloc1 + lloc2 + gloc) 
+
+      // Make the relations nicer to display 
+      is_core[hb] 
+      is_core[sb] 
+    } 
+  }
+} 
+
+run { histInclRun } for 4
+run { histInclRunLHS } for 6 but exactly 1 Call, 1 Ret
+*/

@@ -160,10 +160,11 @@ pred RFwfLocal [ dom : set Action,
       lastval[dom, kind, lloc1, callmap, rv, sb, a, a.lloc2] 
   } 
 
-  // Writes take the correct local var value 
-  all w : dom & kind.Write | {
+  // Internal writes take the correct local var value 
+  // TODO: it'd be more elegant to check whether a local var is specified
+  all w : dom & kind.Write & Intern | {
     w.wv = lastval[dom, kind, lloc1, callmap, rv, sb, w, w.lloc1] 
-  } 
+  }
 
   // The retmap takes the correct values. 
   all t : Thr | { 
@@ -191,9 +192,8 @@ pred RFwf [ dom : set Action,
     some rf.r implies r.rv = (rf.r).wv // and not r.rval in Init
     no rf.r implies r.rv in Init 
 
-    // Allow initialisation reads, but force actions to 
-    // read from an explicit write if any is hb-available 
-    // Note MO used here because r might be a RMW 
+    // Allow initialisation reads, but force actions to read from an explicit
+    // write if any is hb-available.  Note MO used here because r might be RMW. 
     (some (hb + mo).r & (kind.(Write + RMW) <: loc).(r.loc) ) 
           implies (some rf.r) 
     // TODO: Mark isn't completely convinced
