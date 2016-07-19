@@ -52,15 +52,10 @@ pred locWF[ dom : set Action,
 
     all a : dom | { 
       // All reads, writes, RMW access global locations
-      a in kind.(Read + Write + RMW)  iff  one a.gloc
+      a in kind.(Read + ReadN + Write + RMW)  iff  one a.gloc
 
       // Reads and writes access zero or one local variables
       a in kind.(Read + Write) & Intern  implies  { 
-        one a.lloc1 and one a.lloc2
-      } 
-
-      // Reads and writes access zero or one local variables
-      a in kind.ReadN & Intern  implies  { 
         one a.lloc1 and no a.lloc2
       } 
 
@@ -69,8 +64,8 @@ pred locWF[ dom : set Action,
         one a.lloc1 and one a.lloc2
       } 
   
-      // Fences don't access local variables
-      a in kind.FenceSC & Intern implies { 
+      // Fences and ReadN don't access local variables
+      a in kind.(ReadN + FenceSC) & Intern implies { 
         no a.lloc1 and no a.lloc2 
       } 
     } 
