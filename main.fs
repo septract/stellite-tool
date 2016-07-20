@@ -20,7 +20,7 @@ with
 
 // Build the argument parser
 let argparser = ArgumentParser.Create<CLIArguments>()
-let argusage = argparser.Usage() 
+let argusage = argparser.PrintUsage() 
 
 // Make a fresh number generator 
 let fg = freshGen () 
