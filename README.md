@@ -7,6 +7,7 @@ transformation's validity. Built using F# and FParsec.
 Portions of Stellite's code were adapted with permission from
 [Starling](https://github.com/septract/starling-tool). 
 
+A draft paper on the theory underlying Stellite is available [here](https://www-users.cs.york.ac.uk/~miked/publications/verifying_prog_trans.pdf). 
 
 ## Usage
 
