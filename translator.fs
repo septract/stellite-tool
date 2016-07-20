@@ -14,7 +14,7 @@ let rec intersperse i xs =
 /// Display the declared global variable names
 let dispGlobDecl cmds = 
     List.map (function | GlobDecl vs -> vs 
-                           | _ -> []) cmds 
+                       | _ -> []) cmds 
     |> List.concat 
 
 /// Display the declared local variable names
@@ -36,33 +36,33 @@ let dispAllDecl cmds =
      ", " + 
      (dispThrDecl cmds |> intersperse ", ") // + ", " + dispValDecl cmds
 
-    //(List.map (function | GlobDecl vs -> vs  
-    //                    | _ -> []) cmds) 
-    //@ 
-    //(List.map (function | ValDecl vs -> vs  
-    //                    | _ -> []) cmds) 
-    //x |> List.concat |> intersperse ", "
+/// Check whether a command is an action
+let (|HasGloc|_|) = 
+  function | Write (x,_) | Read (x,_) | ReadN x | RMW (x,_,_) -> Some x
+           | _ -> None 
 
 /// Check whether a command is an action
-let hasGloc = function | Write _ | Read _ | ReadN _ | RMW _ -> true
-                       | _ -> false 
-
-/// Check whether a command is an action
-let hasLloc = function | Write _ | Read _ | RMW _ -> true
-                       | _ -> false 
+let (|HasLloc1|_|) = 
+  function | Write (_,x) | Read (_,x) | RMW (_,x,_) -> Some x
+           | _ -> None
 
 /// Check whether a command is an assumeEq
-let isAssm = function | AssumeEq _ -> true
-                      | _ -> false 
+let (|HasLloc2|_|) = 
+  function | RMW (_,_,x) -> Some x
+           | _ -> None
 
+(*
 let isFence = function | FenceSC _ -> true
                        | _ -> false 
+*) 
 
+(*
 /// Get the identifier for an action 
 let getActionId a = 
     match a with 
     | Write (i,_) | Read (i,_) | ReadN (i,_) | RMW (i,_) | AssumeEq (i,_) | FenceSC i -> i
     | _ -> failwith "getActionId: not a valid parameter!" 
+
 
 /// Get the variable for an action 
 let getActionGloc a = 
@@ -74,54 +74,29 @@ let getActionGloc a =
 /// Get the local variable for an action 
 let getActionlloc1 a = 
     match a with 
-    | Write (_,(_,x)) | Read (_,(_,x)) | AssumeEq (_,(x,_)) -> x
+    | Write (_,(_,x)) | Read (_,(_,x)) | RMW (_,(_,x,_)) -> x
     //| RMW (_,(x,_,_)) -> x
     | _ -> failwith "getActionlloc1: not a valid parameter!" 
 
 /// Get the local variable for an action 
 let getActionlloc2 a = 
     match a with 
-    | AssumeEq (_,(_,x)) -> x
+    | RMW (_,(_,_,x)) -> x
     | _ -> failwith "getActionlloc2: not a valid parameter!" 
+*) 
 
 /// Generate the name for the action. 
-let actName c = "op" + string (getActionId c)
+let actName (i,x) = "op" + string i
 
 /// Get the correct set for the action. 
-let actKind c = 
+let actKind (i,c) = 
     match c with 
     | Write _ -> "Write"
     | Read _ -> "Read"
     | ReadN _ -> "ReadN" 
-    //| RMW _ -> "RMW" 
+    | RMW _ -> "RMW" 
     | AssumeEq _ -> "AssmEq" 
     | FenceSC _ -> "FenceSC" 
-    | _ -> failwith "actKind: not an action!"
-
-/// Generate equality assertions for read-write and read-value pairs. 
-/// These represent the effect of local variables in the semantics
-//let genEqRW id id2 = "op" + string id + ".rval = op" + string id2 + ".wval" 
-//let genEqRV id vname = "op" + string id + ".rval = " + vname
-
-///// Generate equality assertions in a program suffix. This stops propagating when 
-///// we reach a read that assigns to the same local variable. 
-//let rec genEqLoc i l cmds = 
-//    match cmds with 
-//    | Write (i',(_,l')) :: cmds' when l = l' -> [genEqRW i i'] @ (genEqLoc i l cmds') 
-//    //| RMW (i', (_,l',l'',_)) :: cmds' -> 
-//    //  [genEqRMW i i'] @ (genEqLoc i l cmds') 
-//    // | AssumeEq (l',v') :: cmds' when l' = l -> [genEqRV i v'] @ (genEqLoc i l cmds') 
-//    | Read (_, (_,l')) :: cmds' when l = l' -> [] 
-//    | _ :: cmds' -> genEqLoc i l cmds'  
-//    | [] -> [] 
-
-///// Generate equality assertions arising from local variables. 
-//let rec genEqs cmds = 
-//    match cmds with 
-//    | Read (i,(_,l)) :: cmds' | RMW (i,(_,_,_,l)) :: cmds' -> 
-//        (genEqLoc i l cmds') @ (genEqs cmds') 
-//    | c :: cmds' -> genEqs cmds'
-//    | [] -> []  
 
 /// Helper function to convert a sequence of names into an Alloy sequence definition. 
 let rec seqDefn names : string = 
@@ -131,68 +106,30 @@ let rec seqDefn names : string =
 
 
 (*********************************************************************
- *   Predicates for the simpler C11 model
- *********************************************************************) 
-
-(*
-let dispSimpPredHO ((name, cmds) : string * List<Command>) : List<string> =
-    let acts = (List.filter isAct) cmds in
-      [ "pred " + name ] @
-      [ "         [ dom : set Action, sb : Action -> Action,"] @   
-      [ "           " + dispGlobDecl cmds + " : Loc, " + dispValDecl cmds + " : Val ] { "] @
-      [ "  sb in (dom -> dom)" ] @ 
-      [ "  some disj " + (List.map actName acts |> intersperse ", ") + " : Action | { "] @ 
-      [ "    dom = " + (List.map actName acts |> intersperse " + ") + " + Call + Ret" ] @ 
-      [ "    (none -> none)" + (List.map actName acts |> seqDefn) + " in sb" ] @ 
-      (List.map (fun c -> "    " + (actName c) + ".loc = " + (getActionGloc c)) acts) @ 
-      (List.map (fun c -> "    " + (actName c) + " in " + (actKind c)) acts) @ 
-      (List.map ((+) "    ") (genEqs cmds)) @ 
-      [ "  }"] @  
-      [ "}"] 
-
-let dispHarnessPredHO name decl = 
-    [ "pred " + name ] @ 
-    [ "     [ dom, dom' : set Action, sb, sb' : Action -> Action ] {" ] @ 
-    [ "       some " + dispGlobDecl decl + " : Glob & Atomic, " + dispValDecl decl + " : Val | {" ] @ 
-    [ "    " + name + "LHS[dom - Extern, sb, " + dispAllDecl decl + "]" ] @ 
-    [ "    " + name + "RHS[dom' - Extern, sb', " + dispAllDecl decl + "]" ] @ 
-    [ "  }" ] @ 
-    [ "}" ] 
-
-
-let dispOptPredHO ((name,decl,lhs,rhs) : string * List<Command> * List<Command> * List<Command>) 
-                : List<string> = 
-    dispSimpPredHO (name+"LHS", (decl @ lhs)) @ 
-    dispSimpPredHO (name+"RHS", (decl @ rhs)) @ 
-    dispHarnessPredHO name decl 
-*)
-
-(*********************************************************************
- *  Display functions for the more advanced, relational C11 model. 
+ *  Display functions  
  *********************************************************************) 
 
 let dispSimpPredRelat ((name, cmds) : string * List<Command>) : List<string> =
-    let glocacts = List.filter hasGloc cmds in
-    let lloc1acts = List.filter hasLloc cmds in
-    let lloc2acts = List.filter isAssm cmds in 
-    let fences = List.filter isFence cmds in 
-    let allops = List.filter (fun x -> hasGloc x || isAssm x || isFence x) cmds in 
+    let allOps = List.choose (function Op (i,x) -> Some (i,x) | _ -> None) cmds 
+    let glocOps = List.choose (fun (i,x) -> (match x with | HasGloc v -> Some (i,v) | _ -> None)) allOps 
+    let lloc1Ops = List.choose (fun (i,x) -> (match x with | HasLloc1 v -> Some (i,v) | _ -> None)) allOps 
+    let lloc2Ops = List.choose (fun (i,x) -> (match x with | HasLloc2 v -> Some (i,v) | _ -> None)) allOps in 
       [ "pred " + name ] @
       [ "         [ dom : set Action, kind : Action -> Kind," ] @
       [ "           gloc : Action -> Glob, lloc1, lloc2 : Action -> Thr, " ] @
       [ "           sb : Action -> Action, " + (dispGlobDecl cmds |> intersperse ", ") + " : Glob, " 
                + (dispThrDecl cmds |> intersperse ", ") + " : Thr ] { "] @
       [ "  sb in (dom -> dom)" ] @ 
-      (if (List.length allops > 0) then 
-        [ "  some disj " + (List.map actName allops |> intersperse ", ") + " : Action | "]
+      (if (List.length allOps > 0) then 
+        [ "  some disj " + (List.map actName allOps |> intersperse ", ") + " : Action | "]
       else []) @ 
       [ "  { "] @ 
-      [ "    dom = " + (List.fold (fun c a -> (actName a) + " + " + c) "" allops) + "Call + Ret" ] @ 
-      [ "    (Call -> Ret)" + (List.map actName allops |> seqDefn) + " in sb" ] @ 
-      (List.map (fun c -> "    " + (actName c) + ".gloc = " + (getActionGloc c)) glocacts) @ 
-      (List.map (fun c -> "    " + (actName c) + ".lloc1 = " + (getActionlloc1 c)) lloc1acts) @ 
-      (List.map (fun c -> "    " + (actName c) + ".lloc2 = " + (getActionlloc2 c)) lloc2acts) @ 
-      (List.map (fun c -> "    " + (actName c) + " in kind." + (actKind c)) allops) @ 
+      [ "    dom = " + (List.fold (fun c a -> (actName a) + " + " + c) "" allOps) + "Call + Ret" ] @ 
+      [ "    (Call -> Ret)" + (List.map actName allOps |> seqDefn) + " in sb" ] @ 
+      (List.map (fun c -> "    " + (actName c) + ".gloc = " + (snd c)) glocOps) @ 
+      (List.map (fun c -> "    " + (actName c) + ".lloc1 = " + (snd c)) lloc1Ops) @ 
+      (List.map (fun c -> "    " + (actName c) + ".lloc2 = " + (snd c)) lloc2Ops) @ 
+      (List.map (fun c -> "    " + (actName c) + " in kind." + (actKind c)) allOps) @ 
       [ "  }"] @  
       [ "}"] 
 

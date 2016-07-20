@@ -21,19 +21,21 @@ type Ident = string
 //    | Eq of Ident * Ident 
 //    | Neq of Ident * Ident 
 
-// TODO would be nice to separate actions by type 
+type Operation = 
+    | Write of Ident * Ident
+    | Read of Ident * Ident
+    | ReadN of Ident
+    | RMW of Ident * Ident * Ident
+//    | Choice of Command * Command 
+//    | Cond of BExp * List<Command>
+    | AssumeEq of Ident * Ident
+    | FenceSC  
+
 type Command = 
     | ThrDecl of List<Ident>
     | GlobDecl of List<Ident>
     | ValDecl of List<Ident>
-    | Write of int * (Ident * Ident)
-    | Read of int * (Ident * Ident)
-    | ReadN of int * Ident 
-    | RMW of int * (Ident * Ident * Ident * Ident)
-//    | Choice of Command * Command 
-//    | Cond of BExp * List<Command>
-    | AssumeEq of int * (Ident * Ident)
-    | FenceSC of int 
+    | Op of int * Operation
 
 /// Parse comment 
 let com = skipString "//" .>> skipRestOfLine true
@@ -63,48 +65,52 @@ let parseValDecl = skipString "val " >>. ws >>. parseIdentList |>> ValDecl
 /// Note parseWrite / parseRead / parseRMW all pass a fresh-name generator fg
 /// This is a mutable counter which populates the identifier field of the action. 
 
+/// Create a fresh name for the operation, and wrap in the Comamnd type
+let makeOp c fg : Command = Op ((getFresh fg), c) 
+
 /// Parse a write action 
 let parseWrite fg = 
     between (skipString "write(" >>. ws) 
             parseEndBrac 
             (tuple2 parseIdent (wscomma >>. parseIdent))
-    |>> fun (a,b) -> Write (getFresh fg, (a, b)) 
+    |>> fun (a,b) -> makeOp (Write (a, b)) fg 
 
 /// Parse a read action
 let parseRead fg = 
     between (skipString "read(" >>. ws) 
             parseEndBrac 
             (tuple2 parseIdent (wscomma >>. parseIdent))
-    |>> fun (a,b) -> Read (getFresh fg, (a,b)) 
+    |>> fun (a,b) -> makeOp (Read (a,b)) fg 
 
 /// Parse a readN action
 let parseReadN fg = 
     between (skipString "readN(" >>. ws) 
             parseEndBrac 
             parseIdent
-    |>> fun a -> ReadN (getFresh fg, a) 
+    |>> fun a -> makeOp (ReadN a) fg 
 
 /// Parse a RMW action 
 let parseRMW fg = 
     between (skipString "RMW(" >>. ws) 
             parseEndBrac 
-            (tuple4 (parseIdent .>> wscomma) 
-                    (parseIdent .>> wscomma) 
+            (tuple3 (parseIdent .>> wscomma) 
                     (parseIdent .>> wscomma) 
                     parseIdent) 
-    |>> fun (a,b,c,d) -> RMW (getFresh fg, (a,b,c,d)) 
+    |>> fun (a,b,c) -> makeOp (RMW (a,b,c)) fg 
 
+(*
 /// Parse an assume operation 
 let parseAssume fg =
     between (skipString "assumeEq(" >>. ws)
             parseEndBrac 
             (tuple2 parseIdent (ws >>. skipString "," >>. ws >>. parseIdent) ) 
     |>> fun (a,b) -> AssumeEq (getFresh fg, (a,b))
+*) 
 
 /// Parse an SC fence operation 
 let parseFenceSC fg = 
     (skipString "fenceSC" >>. ws)
-    |>> fun _ -> FenceSC (getFresh fg)
+    |>> fun _ -> makeOp FenceSC fg 
 
 /// Parse the file name 
 let parseName = skipString "/**" >>. ws >>. parseIdent .>> skipRestOfLine true 
@@ -118,23 +124,23 @@ let parseCmd fg = (choice[ parseWrite fg
                            parseRead fg 
                            parseReadN fg 
                            //(parseRMW fg) 
-                           parseAssume fg 
+                           // parseAssume fg 
                            parseFenceSC fg]) .>> (ws .>> pstring ";" .>> ws) 
  
 /// Parse an optimisation script                                                  
-let parseOptScript fg : Parser<_, unit> = 
+let parseOptScript fg : Parser<String * List<Command> * List<Command> * List<Command>, unit> = 
     tuple4 (parseName .>> ws) 
            (many (parseDecl fg) .>> sepr .>> ws)
            (many (parseCmd fg) .>> sepr .>> ws)
            (many (parseCmd fg) .>> eof) 
-
+(*
 /// Parse a simple script 
 let parseSimpScript fg : Parser<_, unit> = 
     tuple3 (parseName .>> ws) 
            (many (parseDecl fg) .>> sepr .>> ws)
            (many (parseCmd fg) .>> eof)
     |>> (fun (a,b,c) -> (a, (b @ c)))  
-
+*) 
 
 /// Parse a named file 
 let parseFile name parser = 
