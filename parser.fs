@@ -123,7 +123,7 @@ let parseDecl fg = (choice[ parseThrDecl
 let parseCmd fg = (choice[ parseWrite fg
                            parseRead fg 
                            parseReadN fg 
-                           //(parseRMW fg) 
+                           parseRMW fg
                            // parseAssume fg 
                            parseFenceSC fg]) .>> (ws .>> pstring ";" .>> ws) 
  

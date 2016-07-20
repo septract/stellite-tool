@@ -80,19 +80,28 @@ pred valWF[ dom : set Action,
 
     // Writes have a written value, reads have a read value, RMW have both
     all a : dom - (Call + Ret) | { 
-      kind[a] in Write iff { 
+      kind[a] in Write implies { 
         one a.wv
         no a.rv
       } 
-      kind[a] in (Read + ReadN) iff { 
+      kind[a] in (Read + ReadN) implies { 
         one a.rv
         no a.wv
       } 
-      kind[a] in RMW iff { 
+      kind[a] in RMW implies { 
+        one a.rv
+        lone a.wv
+      } 
+      // External RMWs never fail - otherwise they just look like writes. 
+      // TODO - is this necessary? 
+      kind[a] in RMW and a in Extern implies { 
         one a.rv
         one a.wv
       } 
-      // Implicitly, all other actions have no rv / wv
+      kind[a] in FenceSC implies { 
+        no a.wv
+        no a.rv 
+      } 
     } 
 } 
 
@@ -111,6 +120,9 @@ pred HBacyc [ dom : set Action, kind : Action -> Kind,
 } 
 
 // Find the last value written for a given local variable and action
+
+// TODO: need to modify when we allow RMW to modify local vars 
+// specifically, needs to pass lloc for the modified var. 
 fun lastval [ dom : set Action, 
               kind : Action -> Kind, 
               lloc : Action -> Loc, 
@@ -155,16 +167,30 @@ pred RFwfLocal [ dom : set Action,
   retmap in Thr -> one Val 
 
   // Assumes demand equality on local var values
-  all a : dom & kind.AssmEq | { 
-    lastval[dom, kind, lloc1, callmap, rv, sb, a, a.lloc1] = 
-      lastval[dom, kind, lloc1, callmap, rv, sb, a, a.lloc2] 
-  } 
+  // Removed to prevent bitrot as we never use AssmEq - MDD, 20-7-16
+  // all a : dom & kind.AssmEq | { 
+  //   lastval[dom, kind, lloc1, callmap, rv, sb, a, a.lloc1] = 
+  //     lastval[dom, kind, lloc1, callmap, rv, sb, a, a.lloc2] 
+  // } 
 
   // Internal writes take the correct local var value 
-  // TODO: it'd be more elegant to check whether a local var is specified
+  // TODO: it might be more elegant to check whether a local var is specified? 
   all w : dom & kind.Write & Intern | {
     w.wv = lastval[dom, kind, lloc1, callmap, rv, sb, w, w.lloc1] 
   }
+
+  // TODO: lastval needs to be fixed if we allow RMW to write to local vars
+  all w : dom & kind.RMW & Intern | { 
+    { no w.wv implies 
+        no (w.rv & lastval[dom, kind, lloc1, callmap, rv, sb, w, w.lloc1] ) 
+    } 
+    and 
+    { some w.wv implies { 
+        w.rv = lastval[dom, kind, lloc1, callmap, rv, sb, w, w.lloc1]
+        w.wv = lastval[dom, kind, lloc1, callmap, rv, sb, w, w.lloc2] 
+      } 
+    }  
+  } 
 
   // The retmap takes the correct values. 
   all t : Thr | { 
