@@ -1,0 +1,10 @@
+/** RMWxlmRMWxlm-RMWxlm  **/
+global x;
+local l, m; 
+
+/** Optimised **/ 
+RMW(x,l,m); 
+
+/** Unoptimised **/ 
+RMW(x,l,m); 
+RMW(x,l,m); 
